@@ -115,4 +115,27 @@
     <string name="notif_channel_desc">후진 중 후방 카메라 화면 위에 표시되는 한 줄 코칭</string>
     <string name="notif_title">나는야 주차왕</string>
     <string name="notif_title_snapped">조향 정렬 완료</string>
+
+    <!-- Result score (slot geometry from SVM; demo source is labelled) -->
+    <string name="outcome_title">주차 위치 점수</string>
+    <string name="outcome_demo_badge">가상 데이터</string>
+    <string name="outcome_svm_badge">SVM</string>
+    <string name="outcome_combined">종합 점수</string>
+    <string name="outcome_split">과정 %1$d점 · 위치 %2$d점</string>
+    <string name="outcome_unavailable">주차 위치 점수는 SVM 데이터가 제공되면 함께 표시됩니다.</string>
+    <string name="outcome_gap_front">입구선 %1$s</string>
+    <string name="outcome_gap_rear">뒤쪽 %1$s</string>
+    <string name="outcome_gap_side">%1$s</string>
+    <string name="outcome_yaw">기울기 %1$.1f°</string>
+    <string name="ocat_in_slot">주차선 안</string>
+    <string name="ocat_centering">좌우 균형</string>
+    <string name="ocat_depth">앞뒤 깊이</string>
+    <string name="ocat_alignment">평행 정렬</string>
+    <string name="otip_in_slot">차체가 주차선을 넘었습니다. 마지막 직진 후진 구간에서 양쪽 사이드미러로 선을 확인하세요.</string>
+    <string name="otip_centering">한쪽으로 치우쳤습니다. 회전을 시작하는 위치를 주차 칸 기준으로 조금 조정해 보세요.</string>
+    <string name="otip_depth">앞뒤 깊이가 맞지 않습니다. 차 앞이 입구선 안에 들어오고 뒤쪽은 한 뼘 정도 남기면 좋습니다.</string>
+    <string name="otip_alignment">차가 주차선과 비스듬합니다. 핸들을 중앙으로 되돌린 뒤 조금 더 직진 후진하세요.</string>
+    <string name="voice_outcome">주차가 완료되었습니다. 종합 점수는 %2$d점, 주차 위치 점수는 %1$d점입니다.</string>
+    <string name="svm_demo_label">SVM 위치 점수 시연</string>
+    <string name="svm_demo_hint">가상 데이터 · SVM API 제공 전 시연용</string>
 </resources>

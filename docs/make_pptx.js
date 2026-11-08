@@ -231,11 +231,36 @@ pres.addSection({ title: "핵심 기능" });
   bullets(s, ["90–100  명예 주차왕", "70–89  안전 주차 마스터", "50–69  주차 입문자", "0–49  연습 단계"], rx + 0.3, 2.2, rw - 0.6, 1.5, { size: 13, psa: 4 });
   card(s, rx, 4.0, rw, 2.3);
   text(s, "왜 과정인가", rx + 0.3, 4.18, rw - 0.6, 0.35, { size: 15, bold: true, color: H.accent2 });
-  text(s, "주차 칸 대비 센티미터 정렬은 측정할 수 없습니다. 대신 \"숙련자는 한 번에, 천천히, 핸들을 한 방향으로만 조작한다\"는 관찰 가능한 행동을 점수화합니다. 임계값은 Config 한 곳에 모여 있어 실차 데이터로 재보정하기 쉽습니다.", rx + 0.3, 4.6, rw - 0.6, 1.6, { size: 12, color: C.text2 });
+  text(s, "주차 칸 대비 센티미터 정렬은 측정할 수 없습니다. 대신 \"숙련자는 한 번에, 천천히, 핸들을 한 방향으로만 조작한다\"는 관찰 가능한 행동을 점수화합니다. SVM 데이터가 열리면 다음 장의 위치 점수가 \"어디에 세웠는가\"를 보완합니다.", rx + 0.3, 4.6, rw - 0.6, 1.6, { size: 12, color: C.text2 });
   s.addNotes("배점과 감점 기준. 단위 테스트가 모범 주차 ≥90, 초보 주차 <70을 보증.");
 }
 
-// ================= Slide 7: Scenario
+// ================= Slide 7: Position score (SVM-ready)
+{
+  const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "핵심 기능" });
+  s.addText("주차 위치 점수: SVM 데이터가 열리면 바로 켜집니다", { placeholder: "title" });
+  const iw = 2.75, ih = iw * 660 / 480, iy = 1.55;
+  [["13_result_svm_model_panel.png", "과정이 매끄러운 주차 → 위치 89점", H.accent2], ["14_result_svm_novice_panel.png", "망설인 주차 → 위치 31점", H.accent3]].forEach(([f, cap, color], i) => {
+    const x = M + i * (iw + 0.25);
+    card(s, x - 0.08, iy - 0.08, iw + 0.16, ih + 0.62);
+    s.addImage({ path: path.join(__dirname, "pt", f), x, y: iy, w: iw, h: ih, altText: "주차 위치 점수 패널: " + cap, objectName: "position-panel" });
+    text(s, cap, x, iy + ih + 0.1, iw, 0.35, { size: 12, bold: true, color, align: "center" });
+  });
+  text(s, "Pleos Connect 에뮬레이터 실화면 · 시연용 가상 데이터", M, iy + ih + 0.62, 2 * iw + 0.25, 0.3, { size: 10.5, color: C.text2, align: "center" });
+  const rx = M + 2 * iw + 0.25 + 0.45, rw = W - M - rx;
+  card(s, rx, 1.55, rw, 1.45, { line: H.accent1 });
+  text(s, "요청 데이터: 영상이 아니라 인식 결과", rx + 0.3, 1.68, rw - 0.6, 0.35, { size: 14.5, bold: true, color: H.accent1 });
+  bullets(s, ["좌·우·앞·뒤 간격(cm) · 기울기(°) · 신뢰도", "SVM 차량은 이미 주차선을 인식 중. 얼굴·번호판 없음"], rx + 0.3, 2.1, rw - 0.6, 0.85, { size: 12, psa: 4 });
+  card(s, rx, 3.12, rw, 1.75, { line: H.accent2 });
+  text(s, "두 층 점수", rx + 0.3, 3.25, rw - 0.6, 0.35, { size: 14.5, bold: true, color: H.accent2 });
+  bullets(s, ["종합 = 과정 70% + 위치 30%", "SVM 없는 차량은 과정 점수만으로 완결", "주차선 30 · 좌우 30 · 깊이 20 · 정렬 20", "신뢰도 0.6 미만이면 표시 안 함"], rx + 0.3, 3.67, rw - 0.6, 1.15, { size: 12, psa: 3 });
+  card(s, rx, 4.99, rw, 1.6, { line: H.accent4 });
+  text(s, "준비 상태", rx + 0.3, 5.12, rw - 0.6, 0.35, { size: 14.5, bold: true, color: H.accent4 });
+  bullets(s, ["채점기 · 도식 · 이력 저장 · 테스트 완료", "남은 일: SVM 데이터 소스 1개 연결", "화면 캡처 방식은 개인정보·동의 문제로 배제"], rx + 0.3, 5.54, rw - 0.6, 1.0, { size: 12, psa: 3 });
+  s.addNotes("현재 100점은 '어떻게'를 봅니다. SVM이 있는 차는 이미 주차선을 인식하고 있으니 그 결과 숫자만 열어 주시면 '어디에 세웠는가'까지 평가합니다. 영상은 요청하지 않습니다. 화면과 채점은 이미 동작하며, 오늘은 가상 데이터로 보여드립니다. 대기 화면의 'SVM 위치 점수 시연' 스위치를 켜고 모범 주차를 재생하면 이 화면이 나옵니다. 질문 대비: 왜 화면 캡처로 안 했나 → 행인·번호판 촬영, 매 주차 캡처 동의, 차종·OTA별 화면 구성 의존성.");
+}
+
+// ================= Slide 8: Scenario
 pres.addSection({ title: "경험" });
 {
   const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "경험" });
@@ -245,7 +270,7 @@ pres.addSection({ title: "경험" });
     ["링 맞추기", "핸들이 Ghost에 포개지면 녹색 + 확인음", H.accent2],
     ["후진·회전", "회전량 추적. 65°에서 \"핸들을 천천히 풀어 주세요.\"", H.accent1],
     ["직진", "\"핸들을 바르게 하고 천천히 후진하세요.\" 과속·도어 경고", H.accent1],
-    ["P 체결", "결과 카드: 점수, 등급, 5개 항목, 한 줄 코칭. 음성 안내", H.accent2],
+    ["P 체결", "결과 카드: 점수, 등급, 5개 항목, 한 줄 코칭. 음성 안내. SVM 데이터가 있으면 위치 도식 추가", H.accent2],
   ];
   const cw = (W - 2 * M - 4 * 0.25) / 5, cy = 1.7, ch = 3.9;
   steps.forEach(([t, d, color], i) => {
@@ -261,15 +286,15 @@ pres.addSection({ title: "경험" });
   s.addNotes("데모 영상의 장면 순서와 동일.");
 }
 
-// ================= Slide 8: Architecture
+// ================= Slide 9: Architecture
 pres.addSection({ title: "구현" });
 {
   const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "구현" });
   s.addText("시스템 구성: 온디바이스, 세 계층", { placeholder: "title" });
   const layers = [
-    ["Presentation", "MainActivity · ParkingViewModel · Compose UI (GhostRing, Coaching, Result, Standby, DemoPanel) · UxRestrictionsMonitor · VoiceCoach(TTS)", H.accent2],
-    ["Domain (순수 Kotlin, 단위 테스트 20건)", "ParkingSessionTracker(상태 머신·세션 기록) · GhostTargetPlanner · BicycleModel · ParkingScoreEvaluator", H.accent1],
-    ["Data", "PleosVehicleSignalSource (Vehicle SDK 2.3.2: 조향각·브레이크·도어, Gear 폴백) · AaosCarSignalSource (차속·기어) · SimulatedVehicleSignalSource (시나리오·수동)", H.accent4],
+    ["Presentation", "MainActivity · ParkingViewModel · Compose UI (GhostRing, Coaching, Result, History, Replay) · VoiceCoach(Pleos TTS) · CoachNotifier(헤즈업)", H.accent2],
+    ["Domain (순수 Kotlin, 단위 테스트 33건)", "ParkingSessionTracker · GhostTargetPlanner · BicycleModel · ParkingScoreEvaluator(과정) · SlotOutcomeEvaluator(위치)", H.accent1],
+    ["Data", "PleosVehicleSignalSource (조향각·브레이크·도어) · AaosCarSignalSource (차속·기어) · Simulated 소스 · ParkingOutcomeSource (SVM 자리, 현재 미제공)", H.accent4],
   ];
   layers.forEach(([t, d, color], i) => {
     const y = 1.65 + i * 1.5;
@@ -293,7 +318,7 @@ pres.addSection({ title: "구현" });
   s.addNotes("클라우드 서버 없음. 모든 처리가 차량 안에서 끝난다 → 지연 없음, 개인정보 외부 전송 없음.");
 }
 
-// ================= Slide 9: Demo everywhere + verification
+// ================= Slide 10: Demo everywhere + verification
 {
   const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "구현" });
   s.addText("어디서나 같은 시연: Pleos AVD와 내장 시뮬레이터", { placeholder: "title" });
@@ -318,13 +343,13 @@ pres.addSection({ title: "구현" });
   card(s, M, 5.2, W - 2 * M, 1.4);
   text(s, "검증", M + 0.3, 5.35, 2, 0.35, { size: 15, bold: true, color: H.accent2 });
   bullets(s, [
-    "단위 테스트 21건 + Pleos Connect 에뮬레이터 실측: 5개 신호 실수신, 채점, 온디바이스 TTS 재생 확인",
-    "GitHub 저장소에 소스 · release APK · 빌드 재현용 서명 키 포함",
+    "단위 테스트 33건 + Pleos Connect 에뮬레이터 실측: 5개 신호 실수신, 채점, 온디바이스 TTS, 이력·리플레이, 위치 점수 화면 확인",
+    "GitHub 저장소에 소스 · release APK · 빌드 재현 방법 포함 (서명 키는 저장소 밖에 보관)",
   ], M + 0.3, 5.75, W - 2 * M - 0.6, 0.8, { size: 12.5, psa: 4 });
   s.addNotes("PT 리스크 대비: AVD 문제 시 경로 B로 즉시 전환. 두 경로의 화면 흐름은 동일.");
 }
 
-// ================= Slide 10: Business
+// ================= Slide 11: Business
 pres.addSection({ title: "사업성" });
 {
   const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "사업성" });
@@ -333,7 +358,7 @@ pres.addSection({ title: "사업성" });
   const cols = [
     ["타깃", H.accent1, ["1차: 면허 3년 이내 · 차량 교체 직후의 Pleos Connect 운전자", "2차: 가족 차량을 공유하는 동승자·초보 가족", "차량특화: 폰으로는 구현 불가한 기능"]],
     ["가정 지표 (출시 후 검증)", H.accent4, ["대상 모수: 탑재 차량의 20%", "MAU/설치: 45% — R 기어 진입 시 자동 동작, 실행 부담 없음", "30일 리텐션: 35% — 매 주차마다 점수 갱신, 70점↑ 조용한 모드로 피로도 억제", "세션 30~60초, 주행 중 사용 없음"]],
-    ["확장 로드맵", H.accent2, ["ADAS SDK 공개 시 후방 거리 → 안전 항목", "평행 주차 시나리오, 세션 리플레이·주차 이력", "운전자 동의 기반 블루멤버스·정비·UBI 연계는 제휴 전제 로드맵 (본 제출본은 앱 내 등급·배지까지)"]],
+    ["확장 로드맵", H.accent2, ["SVM 인식 결과 공개 시 주차 위치 점수 활성화 (구현 완료)", "ADAS SDK 공개 시 후방 거리 → 안전 항목, 평행 주차 시나리오", "운전자 동의 기반 블루멤버스·정비·UBI 연계는 제휴 전제 로드맵 (본 제출본은 앱 내 등급·배지까지)"]],
   ];
   cols.forEach(([t, color, items], i) => {
     const x = M + i * (cw + 0.4);
@@ -344,7 +369,7 @@ pres.addSection({ title: "사업성" });
   s.addNotes("수치는 가정치임을 명시. 보상 체계는 약속이 아니라 로드맵.");
 }
 
-// ================= Slide 11: Schedule & close
+// ================= Slide 12: Schedule & close
 pres.addSection({ title: "마무리" });
 {
   const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "마무리" });
@@ -352,10 +377,10 @@ pres.addSection({ title: "마무리" });
   const rows = [
     ["기간", "작업"],
     ["~11/15", "1차 접수: 기획서 · 소스 · release APK · 시연 영상"],
-    ["11/16 ~ 11/22", "실측 결과 반영(조향각 부호·폴링 완료) → 시연 영상, UX 라이팅 다듬기"],
-    ["11/23 ~ 12/2", "세션 로그·주차 이력, PT 리허설 (AVD 경로 + 시뮬레이터 경로 이중화)"],
+    ["11/16 ~ 11/22", "시연 영상 음성 추가, 헤즈업 문구 확정, UX 라이팅 다듬기"],
+    ["11/23 ~ 12/2", "PT 리허설 (AVD 경로 + 시뮬레이터 경로 이중화, SVM 시연 포함)"],
     ["12/3 ~ 12/4", "오프라인 PT 실동작 시연"],
-    ["12/19 ~ 2027.1", "전시용 APK 안정화, 실차 테스트 시 모델 재보정"],
+    ["12/19 ~ 2027.1", "전시용 APK 안정화, 실차 테스트 시 모델 재보정, SVM 데이터 협의"],
   ];
   s.addTable(rows.map((r, i) => r.map((c, j) => ({ text: c, options: { bold: i === 0 || j === 0, color: i === 0 ? H.lt1 : (j === 0 ? H.accent1 : H.dk1), fill: { color: i === 0 ? H.accent1 : (i % 2 ? H.lt2 : H.accent5) }, fontSize: 13, margin: [4, 8, 4, 8] } }))),
     { x: M, y: 1.6, w: 7.6, colW: [1.9, 5.7], border: { type: "solid", color: H.lt1, pt: 1 }, objectName: "schedule-table" });
@@ -366,7 +391,7 @@ pres.addSection({ title: "마무리" });
   text(s, "주차의 스트레스를 측정 가능한 연습으로", rx + 0.3, 3.95, rw - 0.6, 0.65, { size: 16, bold: true, align: "center" });
   text(s, "차량이 이미 아는 다섯 신호로, 차량 안에서, 지금 바로 동작합니다.", rx + 0.3, 4.6, rw - 0.6, 0.8, { size: 13, color: C.text2, align: "center" });
   text(s, "github.com/skyworker104/pleos-steerin", rx + 0.3, 5.5, rw - 0.6, 0.4, { size: 12, color: H.accent1, align: "center" });
-  s.addNotes("마무리. 질문 대비: 조향각 부호/주기, R 기어 시 후방 카메라와의 화면 점유 관계, 보상 체계의 실현 가능성.");
+  s.addNotes("마무리. 질문 대비: 조향각 부호/주기, R 기어 시 후방 카메라와의 화면 점유 관계, SVM 데이터 요청 범위, 보상 체계의 실현 가능성.");
 }
 
 (async () => {

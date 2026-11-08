@@ -80,9 +80,13 @@ private fun SteerinContent(ui: UiState, viewModel: ParkingViewModel) {
                                 }
                                 DrivingState.Result::class -> {
                                     val result = ui.tracker.driving as? DrivingState.Result
-                                    if (result != null) ResultScreen(result.score, onAcknowledge = viewModel::acknowledgeResult)
+                                    if (result != null) ResultScreen(
+                                        result.score,
+                                        outcome = ui.outcome?.takeIf { it.log === result.log }?.score,
+                                        onAcknowledge = viewModel::acknowledgeResult,
+                                    )
                                 }
-                                else -> StandbyScreen(ui, onSideChange = viewModel::setSide, onOpenHistory = viewModel::showHistory)
+                                else -> StandbyScreen(ui, onSideChange = viewModel::setSide, onOpenHistory = viewModel::showHistory, onToggleSvmDemo = viewModel::toggleSvmDemo)
                             }
                         }
                     }

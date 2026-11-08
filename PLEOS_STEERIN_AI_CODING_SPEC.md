@@ -81,6 +81,15 @@ DRIVING ──(gear=R)──▶ COACHING ──(gear=P, 이동 있음, ≥2s)─
 
 `docs/SCORING.md`의 표와 동일. 임계값은 `Config` 데이터 클래스에 모여 있다. 결과 `ParkingScore(total, tier, categories[5], metrics)`; `weakestCategory`로 팁을 고른다.
 
+## 6.5 위치 점수 (`SlotOutcomeEvaluator`, SVM 연동 확장)
+
+* 입력 `SlotObservation(leftGapCm, rightGapCm, frontGapCm, rearGapCm, yawDeg, confidence, source)`. 음수 간격 = 선 침범. 원본 영상은 받지 않는다.
+* 배점: 주차선 안 30 · 좌우 균형 30 · 앞뒤 깊이 20 · 평행 정렬 20. 신뢰도 < 0.6 이면 `null`.
+* 종합 = round(과정 × 0.7 + 위치 × 0.3). 위치가 없으면 과정 점수 그대로. 등급은 종합 점수 기준.
+* 소스: `ParkingOutcomeSource`. 운영 `UnavailableOutcomeSource`(Pleos 미제공), 시연 `SimulatedOutcomeSource`(대기 화면 스위치, 기본 꺼짐, 화면에 "가상 데이터" 필수 표시).
+* 저장: `SessionCodec` 선택 헤더 `slot=l,r,f,b,yaw,conf,SOURCE`. 구버전 파일 호환, 깨진 줄은 slot만 버린다.
+* 화면 캡처로 위치를 추정하는 방식은 금지(개인정보·동의·화면 구성 의존). 근거 `docs/SVM_POSITION_SCORE.md`.
+
 ## 7. UI 규격
 
 * 레이아웃 기준 1920×720(12.3") 가로. 좌 42% 링, 우 58% 텍스트. 일반 폰 가로에서도 동작.
@@ -131,3 +140,4 @@ cp app/build/outputs/apk/release/app-release.apk apk/6학년5반_나는야주차
 3. ~~Pleos TextToSpeech SDK 교체~~ → 완료(3.3.1, ON_DEVICE 모드, `PleosTtsEngine`). AVD에서 한국어 합성·재생 확인. Android TTS는 폴백.
 4. `CarInfo` 제원에서 축거 읽어 `VehicleGeometry` 자동 설정(현재 SDK 공개 API에는 치수 getter가 없어 기본값 사용).
 5. ~~세션 로그 저장·리플레이, 주차 이력 화면~~ → 완료. `SessionCodec`(텍스트 포맷) · `SessionRepository`(filesDir/sessions, 최근 50건) · `SessionReplayer` · `ReplayController` · `HistoryScreen`/`ReplayScreen`. 리플레이는 별도 트래커로 동일 점수를 재현(단위 테스트로 보증).
+6. ~~위치 점수 확장~~ → 완료. SVM 데이터 공개 시 `SteerinApplication.outcomeSource`만 교체.

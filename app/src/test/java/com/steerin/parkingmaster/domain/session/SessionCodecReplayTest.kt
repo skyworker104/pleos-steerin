@@ -3,7 +3,10 @@ package com.steerin.parkingmaster.domain.session
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
 import com.steerin.parkingmaster.domain.model.ParkingSide
 import com.steerin.parkingmaster.domain.model.SessionRecord
+import com.steerin.parkingmaster.domain.outcome.SlotObservation
+import com.steerin.parkingmaster.domain.outcome.SlotSource
 import com.steerin.parkingmaster.domain.scoring.ParkingScoreEvaluator
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,5 +60,21 @@ class SessionCodecReplayTest {
         val (res, side) = recordedModelSession()
         val rec = SessionCodec.decode(SessionCodec.encode(SessionRecord("y", 0L, side, res.log)))
         assertEquals(res.score.total, ParkingScoreEvaluator().evaluate(rec.log).total)
+    }
+
+    @Test
+    fun `slot observation round-trips and older files without it still decode`() {
+        val (res, side) = recordedModelSession()
+        val slot = SlotObservation(res.log.endedAtMs, 41f, 37f, 32f, 24f, 0.8f, 0.93f, SlotSource.SIMULATED)
+        val back = SessionCodec.decode(SessionCodec.encode(SessionRecord("z", 0L, side, res.log, slot)))
+        assertEquals(slot, back.slot)
+
+        val legacy = SessionCodec.encode(SessionRecord("old", 0L, side, res.log))
+        assertNull(SessionCodec.decode(legacy).slot)
+
+        val malformed = legacy.replace("samples\n", "slot=broken\nsamples\n")
+        val tolerant = SessionCodec.decode(malformed)
+        assertNull(tolerant.slot)
+        assertEquals(res.log.samples.size, tolerant.log.samples.size)
     }
 }

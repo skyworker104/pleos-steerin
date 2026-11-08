@@ -17,12 +17,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.steerin.parkingmaster.R
+import com.steerin.parkingmaster.domain.outcome.SlotOutcomeEvaluator
 import com.steerin.parkingmaster.domain.session.DrivingState
 import com.steerin.parkingmaster.presentation.ReplayController
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
@@ -40,6 +42,7 @@ private val DATE_FORMAT = SimpleDateFormat("yyyy.M.d HH:mm", Locale.KOREA)
 fun ReplayScreen(controller: ReplayController, onClose: () -> Unit) {
     val st by controller.state.collectAsStateWithLifecycle()
     val record = st.record
+    val replayOutcome = remember(record) { SlotOutcomeEvaluator().evaluate(record?.slot) }
 
     Column(Modifier.fillMaxSize()) {
         // Transport bar
@@ -69,7 +72,7 @@ fun ReplayScreen(controller: ReplayController, onClose: () -> Unit) {
         Box(Modifier.fillMaxSize()) {
             when (val d = st.tracker.driving) {
                 is DrivingState.Coaching -> CoachingScreen(d, st.tracker.snapshot, st.tracker.side, uxRestricted = false)
-                is DrivingState.Result -> ResultScreen(d.score, onAcknowledge = onClose)
+                is DrivingState.Result -> ResultScreen(d.score, outcome = replayOutcome, onAcknowledge = onClose)
                 DrivingState.Driving -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(if (st.finished) R.string.replay_done else R.string.replay_loading), color = SteerinColors.Muted, style = MaterialTheme.typography.bodyLarge)
                 }

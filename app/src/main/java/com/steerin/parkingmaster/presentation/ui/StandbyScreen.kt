@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
 
 /** DRIVING state: minimal, informational. The only control is the parking-side preference. */
 @Composable
-fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistory: () -> Unit = {}) {
+fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistory: () -> Unit = {}, onToggleSvmDemo: () -> Unit = {}) {
     val snapshot = ui.tracker.snapshot
     Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(0.42f).fillMaxHeight(), contentAlignment = Alignment.Center) {
@@ -70,7 +70,16 @@ fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistor
                         Text(stringResource(R.string.standby_history) + if (ui.history.isNotEmpty()) " (${ui.history.size})" else "", style = MaterialTheme.typography.titleMedium)
                     }
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(10.dp))
+                // Demo-only: shows the result-score path with labelled virtual SVM data.
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Switch(checked = ui.svmDemoEnabled, onCheckedChange = { onToggleSvmDemo() })
+                    Column {
+                        Text(stringResource(R.string.svm_demo_label), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.svm_demo_hint), style = MaterialTheme.typography.labelMedium, color = SteerinColors.Amber)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ValueChip(stringResource(R.string.chip_steering), "${snapshot.steeringDeg.roundToInt()}°")

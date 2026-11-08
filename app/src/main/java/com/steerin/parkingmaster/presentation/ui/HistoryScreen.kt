@@ -27,7 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.domain.model.ParkingSide
+import com.steerin.parkingmaster.domain.model.RewardTier
 import com.steerin.parkingmaster.domain.model.SessionSummary
+import com.steerin.parkingmaster.domain.outcome.SlotSource
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -65,8 +67,8 @@ fun HistoryScreen(
 @Composable
 private fun HistoryStats(sessions: List<SessionSummary>) {
     if (sessions.isEmpty()) return
-    val avg = sessions.map { it.score.total }.average().toInt()
-    val best = sessions.maxOf { it.score.total }
+    val avg = sessions.map { it.combinedTotal }.average().toInt()
+    val best = sessions.maxOf { it.combinedTotal }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ValueChip(stringResource(R.string.history_count), "${sessions.size}")
         ValueChip(stringResource(R.string.history_avg), "$avg", tint = SteerinColors.Cyan)
@@ -78,15 +80,21 @@ private val DATE_FORMAT = SimpleDateFormat("M/d HH:mm", Locale.KOREA)
 
 @Composable
 private fun HistoryRow(s: SessionSummary, onReplay: () -> Unit, onDelete: () -> Unit) {
-    val color = tierColor(s.score.tier)
+    val tier = RewardTier.fromScore(s.combinedTotal)
+    val color = tierColor(tier)
     Row(
         Modifier.fillMaxWidth().background(SteerinColors.Surface, RoundedCornerShape(14.dp)).clickable(onClick = onReplay).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("${s.score.total}", style = MaterialTheme.typography.headlineLarge, color = color, fontWeight = FontWeight.Bold, modifier = Modifier.width(84.dp))
+        Text("${s.combinedTotal}", style = MaterialTheme.typography.headlineLarge, color = color, fontWeight = FontWeight.Bold, modifier = Modifier.width(84.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(tierName(s.score.tier)), style = MaterialTheme.typography.titleMedium, color = color)
+                Text(stringResource(tierName(tier)), style = MaterialTheme.typography.titleMedium, color = color)
+                s.outcome?.let { o ->
+                    val label = stringResource(R.string.outcome_split, s.score.total, o.total) +
+                        if (o.observation.source == SlotSource.SIMULATED) " · " + stringResource(R.string.outcome_demo_badge) else ""
+                    Text(label, style = MaterialTheme.typography.labelMedium, color = SteerinColors.Amber)
+                }
                 Text(DATE_FORMAT.format(Date(s.savedAtEpochMs)), style = MaterialTheme.typography.labelLarge, color = SteerinColors.Muted)
                 Text(stringResource(if (s.side == ParkingSide.RIGHT) R.string.side_right else R.string.side_left), style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted)
             }

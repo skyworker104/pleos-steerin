@@ -67,13 +67,23 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 | :--: | :--: |
 | ![history](docs/screenshots/07_history_pleos.png) | ![replay](docs/screenshots/08_replay_pleos.png) |
 
-### 2.5 어디서나 시연 가능
+### 2.5 주차 위치 점수 (SVM 연동 확장, 구현 완료)
+* 과정 점수에 더해 "어디에 세웠는가"를 보는 **위치 점수 100점**(주차선 안 30 · 좌우 균형 30 · 앞뒤 깊이 20 · 평행 정렬 20)을 구현했습니다. 종합 점수는 과정 70% + 위치 30%입니다.
+* 입력은 SVM이 이미 계산하는 **인식 결과 숫자**(좌·우·앞·뒤 간격, 기울기, 신뢰도)이며 영상은 쓰지 않습니다. 현재 Pleos는 이 데이터를 제공하지 않으므로 운영 기본값은 "위치 점수 없음"이고, SVM이 공개되면 데이터 소스 하나만 연결하면 됩니다.
+* 대기 화면의 **SVM 위치 점수 시연** 스위치(기본 꺼짐)를 켜면 고정 예시값으로 결과 화면·이력을 보여 줍니다. 화면과 이력에 항상 "가상 데이터"로 표시됩니다.
+* 화면 주기 캡처 방식은 개인정보·매번 동의·화면 구성 의존성 때문에 검토 후 배제했습니다. 상세: [`docs/SVM_POSITION_SCORE.md`](docs/SVM_POSITION_SCORE.md)
+
+| 시연 스위치 | 매끄러운 주차 (가상 데이터) | 망설인 주차 (가상 데이터) |
+| :--: | :--: | :--: |
+| ![toggle](docs/screenshots/12_svm_demo_toggle.png) | ![model](docs/screenshots/13_result_svm_model.png) | ![novice](docs/screenshots/14_result_svm_novice.png) |
+
+### 2.6 어디서나 시연 가능
 * **Pleos Connect AVD / 실차**: Vehicle Service가 감지되면 자동으로 Vehicle SDK 경로를 사용합니다. Virtual Console의 Motion(기어·브레이크·조향각)·Convenience(트렁크) 카드로 신호를 넣을 수 있습니다.
 * **그 외 모든 Android 기기/에뮬레이터**: Vehicle Service가 없으면 내장 시뮬레이터로 전환됩니다. "모범 주차", "초보 주차" 시나리오 재생과 수동 슬라이더를 제공하므로 동일한 데모 스크립트를 재현할 수 있습니다.
 
 ---
 
-## 2.6 화면 (시뮬레이션 모드, 일반 에뮬레이터 캡처)
+## 2.7 화면 (시뮬레이션 모드, 일반 에뮬레이터 캡처)
 
 | 대기 | 코칭 (Snap-In) | 결과 |
 | :--: | :--: | :--: |
@@ -150,6 +160,7 @@ cd pleos-steerin
 
 ```
 app/src/main/java/com/steerin/parkingmaster/
+ ├── data/outcome/ParkingOutcomeSource.kt   # 주차 위치 데이터 소스 (SVM 자리 · 미제공 · 시연용)
  ├── data/session/SessionRepository.kt      # 세션 파일 저장소 (filesDir/sessions)
  ├── data/vehicle/
  │    ├── VehicleSignal.kt                 # 정규화된 신호 모델
@@ -161,6 +172,7 @@ app/src/main/java/com/steerin/parkingmaster/
  │    ├── kinematics/BicycleModel.kt       # 운동학 자전거 모델 (상대 방위각 추정)
  │    ├── coaching/GhostTargetPlanner.kt   # 단계별 목표 조향각 (READY→TURN_IN→STRAIGHTEN→HOLD)
  │    ├── scoring/ParkingScoreEvaluator.kt # 100점 과정 채점 엔진
+ │    ├── outcome/  SlotObservation · SlotOutcomeEvaluator  # 위치 점수·종합 점수
  │    └── session/  ParkingSessionTracker(R→P 세션·상태 머신) · SessionCodec(텍스트 저장 포맷) · SessionReplayer
  └── presentation/
       ├── ParkingViewModel.kt / ReplayController.kt / MainActivity.kt
@@ -168,8 +180,8 @@ app/src/main/java/com/steerin/parkingmaster/
       ├── overlay/  CoachNotifier(헤즈업 알림) · GhostOverlayWindow(디버그 실험)
       ├── ux/UxRestrictionsMonitor.kt      # CarUxRestrictions 연동
       └── voice/  VoiceCoach · PleosTtsEngine   # Pleos TTS SDK(ON_DEVICE) / Android TTS 폴백 + Snap-In 확인음
-app/src/test/…                             # 단위 테스트 24건 (채점·모델·플래너·세션·코덱/리플레이)
-docs/                                      # SCORING.md, DEMO_SCRIPT.md, 분석 보고서
+app/src/test/…                             # 단위 테스트 33건 (채점·위치 채점·모델·플래너·세션·코덱/리플레이)
+docs/                                      # SCORING.md, DEMO_SCRIPT.md, SVM_POSITION_SCORE.md, PT_SVM_ADDENDUM.md, 분석 보고서
 apk/                                       # 제출용 release APK
 ```
 
@@ -178,6 +190,7 @@ apk/                                       # 제출용 release APK
 ## 6. 로드맵
 
 * **지금 (공모전 제출본)**: 위 기능 전체. 12.3인치 와이드 레이아웃, 시뮬레이션 모드 포함.
+* **SVM 공개 시**: 위치 점수 활성화(구현 완료, 데이터 소스 연결만 필요), 실시간 위치 기반 음성 코칭.
 * **PT 이후**: CarInfo 제원 기반 축거 자동 보정, 배지·목표 점수 설정, 실차에서 조향각 부호·콜백 주기 재확인.
 * **상용화 검토 단계**: 블루멤버스 포인트·정비 쿠폰·UBI 보험 연계는 **제휴가 전제된 로드맵** 입니다. 본 제출본은 앱 내 등급·배지까지만 구현하며, 운전 데이터의 외부 제공은 별도의 명시적 동의 설계가 필요합니다.
 

@@ -6,6 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.SteerinApplication
+import com.steerin.parkingmaster.data.outcome.ParkEvent
+import com.steerin.parkingmaster.data.outcome.ParkingOutcomeSource
+import com.steerin.parkingmaster.data.outcome.SimulatedOutcomeSource
 import com.steerin.parkingmaster.data.session.SessionRepository
 import com.steerin.parkingmaster.data.vehicle.GearPosition
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
@@ -14,6 +17,8 @@ import com.steerin.parkingmaster.domain.model.ManeuverPhase
 import com.steerin.parkingmaster.domain.model.ParkingSide
 import com.steerin.parkingmaster.domain.model.SessionLog
 import com.steerin.parkingmaster.domain.model.SessionSummary
+import com.steerin.parkingmaster.domain.outcome.OutcomeScore
+import com.steerin.parkingmaster.domain.outcome.SlotOutcomeEvaluator
 import com.steerin.parkingmaster.domain.session.DrivingState
 import com.steerin.parkingmaster.domain.session.ParkingSessionTracker
 import com.steerin.parkingmaster.domain.session.TrackerState
@@ -47,7 +52,13 @@ data class UiState(
     val screen: AppScreen = AppScreen.MAIN,
     val history: List<SessionSummary> = emptyList(),
     val lastSavedSessionId: String? = null,
+    /** Demo-only SVM result score (labelled "가상 데이터"). Off by default; never on in a real car by itself. */
+    val svmDemoEnabled: Boolean = false,
+    /** Result score for the result currently on screen, tagged with its log so a stale one is never shown. */
+    val outcome: ResultOutcome? = null,
 )
+
+data class ResultOutcome(val log: SessionLog, val score: OutcomeScore)
 
 class ParkingViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -56,6 +67,10 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private val simulator: SimulatedVehicleSignalSource? = container.simulator
     private val repository: SessionRepository = container.sessionRepository
     private val tracker = ParkingSessionTracker()
+    private val outcomeEvaluator = SlotOutcomeEvaluator()
+    private val simulatedOutcome = SimulatedOutcomeSource()
+    private val outcomeSource: ParkingOutcomeSource
+        get() = if (_ui.value.svmDemoEnabled) simulatedOutcome else container.outcomeSource
 
     val replay = ReplayController(viewModelScope)
 
@@ -68,7 +83,6 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private var started = false
     private var lastPhase: ManeuverPhase? = null
     private var lastSnapped = false
-    private var lastResultAnnounced: Int? = null
     private var lastSavedLog: SessionLog? = null
 
     init {
@@ -105,6 +119,7 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
         _ui.update { it.copy(tracker = tracker.state) }
     }
 
+    fun toggleSvmDemo() = _ui.update { it.copy(svmDemoEnabled = !it.svmDemoEnabled) }
     fun toggleVoice() = _ui.update { it.copy(voiceEnabled = !it.voiceEnabled) }
     fun toggleDemoPanel() = _ui.update { it.copy(showDemoPanel = !it.showDemoPanel) }
     fun setUxRestricted(restricted: Boolean) {
@@ -141,7 +156,20 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
         if (result.log === lastSavedLog) return
         lastSavedLog = result.log
         viewModelScope.launch {
-            runCatching { repository.save(result.log, state.side) }
+            val slot = runCatching { outcomeSource.observeAtPark(ParkEvent(result.log, result.score)) }
+                .onFailure { Log.w("ParkingCoach", "slot observation failed: ${it.message}") }.getOrNull()
+            val outcome = outcomeEvaluator.evaluate(slot)
+            val score = result.score
+            Log.i("ParkingCoach", "result total=${score.total} tier=${score.tier} ${score.categories.joinToString { "${it.category}=${it.points}" }}")
+            if (outcome != null) {
+                val combined = outcomeEvaluator.combined(score.total, outcome)
+                Log.i("ParkingCoach", "outcome total=${outcome.total} combined=$combined source=${slot?.source} ${outcome.categories.joinToString { "${it.category}=${it.points}" }}")
+                _ui.update { it.copy(outcome = ResultOutcome(result.log, outcome)) }
+                _voice.tryEmit(VoiceEvent.Say(R.string.voice_outcome, listOf(outcome.total, combined)))
+            } else {
+                _voice.tryEmit(VoiceEvent.Say(R.string.voice_result, listOf(score.total)))
+            }
+            runCatching { repository.save(result.log, state.side, slot) }
                 .onSuccess { rec -> _ui.update { it.copy(lastSavedSessionId = rec.id) } }
                 .onFailure { Log.w("ParkingCoach", "session save failed: ${it.message}") }
         }
@@ -174,15 +202,11 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                     _voice.tryEmit(VoiceEvent.SnapTone)
                 }
                 lastSnapped = d.snapped
-                lastResultAnnounced = null
             }
             is DrivingState.Result -> {
+                // Announced once per result from persistIfNewResult, after the slot lookup,
+                // so the process and result scores are spoken as one sentence.
                 lastPhase = null
-                if (lastResultAnnounced != d.score.total) {
-                    lastResultAnnounced = d.score.total
-                    Log.i("ParkingCoach", "result total=${d.score.total} tier=${d.score.tier} ${d.score.categories.joinToString { "${it.category}=${it.points}" }}")
-                    _voice.tryEmit(VoiceEvent.Say(R.string.voice_result, listOf(d.score.total)))
-                }
             }
             DrivingState.Driving -> lastPhase = null
         }
