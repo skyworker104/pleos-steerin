@@ -34,6 +34,7 @@ class AaosCarSignalSource(private val context: Context) {
     @Volatile var gearAvailable: Boolean = false
         private set
 
+    @Volatile private var lastLoggedKmh = -10f
     private var car: Car? = null
     private var propertyManager: CarPropertyManager? = null
 
@@ -41,7 +42,9 @@ class AaosCarSignalSource(private val context: Context) {
     private val speedCallback by lazy { object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
             val mps = (value.value as? Float) ?: return
-            _signals.tryEmit(VehicleSignal.Speed(kotlin.math.abs(mps) * 3.6f, SystemClock.elapsedRealtime()))
+            val kmh = kotlin.math.abs(mps) * 3.6f
+            if (kotlin.math.abs(kmh - lastLoggedKmh) >= 1f) { lastLoggedKmh = kmh; Log.d(TAG, "speed=${"%.1f".format(kmh)} km/h") }
+            _signals.tryEmit(VehicleSignal.Speed(kmh, SystemClock.elapsedRealtime()))
         }
         override fun onErrorEvent(propId: Int, zone: Int) {
             Log.w(TAG, "PERF_VEHICLE_SPEED error prop=$propId zone=$zone")
@@ -56,6 +59,7 @@ class AaosCarSignalSource(private val context: Context) {
     } }
 
     private fun emitGear(gear: Int) {
+        Log.d(TAG, "GEAR_SELECTION=$gear")
         val mapped = when (gear) {
             VehicleGear.GEAR_PARK -> GearPosition.PARK
             VehicleGear.GEAR_REVERSE -> GearPosition.REVERSE

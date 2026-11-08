@@ -22,7 +22,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,10 +40,26 @@ import com.steerin.parkingmaster.presentation.ParkingViewModel
 import com.steerin.parkingmaster.presentation.UiState
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
 
+/**
+ * Pleos Connect renders apps on a 2560x1440 @160dpi canvas (≈1860x660 dp for the app pane), where
+ * phone-sized dp values look tiny from the driver's seat. We scale the whole composition so that a
+ * 420 dp-tall layout fills whatever height the window actually has (clamped to 1x..2.2x).
+ */
 @Composable
 fun SteerinApp(viewModel: ParkingViewModel) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val configuration = LocalConfiguration.current
+    val base = LocalDensity.current
+    val scale = (configuration.screenHeightDp / 420f).coerceIn(1f, 2.2f)
+    val scaled = Density(base.density * scale, base.fontScale)
 
+    CompositionLocalProvider(LocalDensity provides scaled) {
+        SteerinContent(ui, viewModel)
+    }
+}
+
+@Composable
+private fun SteerinContent(ui: UiState, viewModel: ParkingViewModel) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Row(Modifier.fillMaxSize().safeDrawingPadding()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {

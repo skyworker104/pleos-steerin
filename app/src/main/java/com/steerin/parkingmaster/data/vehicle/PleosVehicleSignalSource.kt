@@ -12,7 +12,15 @@ import ai.pleos.playground.vehicle.listener.SteeringWheelAngleListener
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +58,18 @@ class PleosVehicleSignalSource(
     override val signals: Flow<VehicleSignal> = merge(_signals.asSharedFlow(), aaos.signals)
 
     private fun now() = SystemClock.elapsedRealtime()
+    private var lastLoggedSteering = Float.NaN
     private fun emit(signal: VehicleSignal) {
+        // Light tracing so reception can be verified with `adb logcat -s PleosSignalSource`.
+        when (signal) {
+            is VehicleSignal.SteeringAngle -> if (lastLoggedSteering.isNaN() || kotlin.math.abs(signal.degrees - lastLoggedSteering) >= 15f) {
+                lastLoggedSteering = signal.degrees; Log.d(TAG, "steering=${signal.degrees}")
+            }
+            is VehicleSignal.GearChanged -> Log.d(TAG, "gear=${signal.gear}")
+            is VehicleSignal.BrakePedal -> Log.d(TAG, "brake=${signal.pressed}")
+            is VehicleSignal.DoorState -> Log.d(TAG, "door ${signal.door} open=${signal.open}")
+            is VehicleSignal.Speed -> Unit
+        }
         _signals.tryEmit(signal)
     }
 
@@ -58,7 +77,7 @@ class PleosVehicleSignalSource(
 
     private val steeringListener = object : SteeringWheelAngleListener {
         override fun onSteeringWheelAngleUpdated(value: Float?) {
-            value?.let { emit(VehicleSignal.SteeringAngle(it, now())) }
+            value?.let { onSteeringValue(it * STEERING_SIGN) }
         }
         override fun onFailed(e: Exception) = fail("steering", e)
     }
@@ -100,6 +119,7 @@ class PleosVehicleSignalSource(
             return
         }
         aaos.start() // speed (+ gear when permitted) via AAOS Car API
+        Log.i(TAG, "AAOS speed=${aaos.speedAvailable} gear=${aaos.gearAvailable}")
         _status.update { it.copy(speedAvailable = aaos.speedAvailable) }
         registerSteering()
         registerGear()
@@ -114,13 +134,41 @@ class PleosVehicleSignalSource(
                 val readable = config?.accessType == AccessType.READ || config?.accessType == AccessType.READ_WRITE
                 Log.i(TAG, "steering capability=$readable bounds=${bounds?.minValue}..${bounds?.maxValue}")
                 if (readable) {
-                    sw.getCurrentSteeringWheelAngle({ v -> v?.let { emit(VehicleSignal.SteeringAngle(it, now())) } }, { fail("steering.get", it) })
+                    sw.getCurrentSteeringWheelAngle({ v -> v?.let { onSteeringValue(it * STEERING_SIGN) } }, { fail("steering.get", it) })
                     sw.registerSteeringWheelAngle(steeringListener)
+                    startSteeringPolling()
                     _status.update { it.copy(steeringAvailable = true) }
                 }
             },
             { fail("steering.capability", it) },
         )
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var pollJob: Job? = null
+    @Volatile private var lastSteering = Float.NaN
+
+    /**
+     * Measured on the Pleos_Connect_v2.1 AVD: the steering listener coalesces updates while the car
+     * is moving (a 300° -> 0° unwind arrived as a single late callback ~11 s later). A 5 Hz poll of
+     * getCurrentSteeringWheelAngle keeps dead-reckoning and the ghost ring honest; identical values
+     * are dropped so the stream stays quiet when the wheel is still.
+     */
+    private fun startSteeringPolling() {
+        pollJob?.cancel()
+        pollJob = scope.launch {
+            val sw = vehicle.getSteeringWheel()
+            while (isActive) {
+                sw.getCurrentSteeringWheelAngle({ v -> v?.let { onSteeringValue(it * STEERING_SIGN) } }, { /* ignore transient poll failures */ })
+                delay(STEERING_POLL_MS)
+            }
+        }
+    }
+
+    private fun onSteeringValue(deg: Float) {
+        if (!lastSteering.isNaN() && lastSteering == deg) return
+        lastSteering = deg
+        emit(VehicleSignal.SteeringAngle(deg, now()))
     }
 
     /**
@@ -131,12 +179,13 @@ class PleosVehicleSignalSource(
     @Suppress("DEPRECATION")
     private fun registerGear() {
         if (aaos.gearAvailable) {
+            Log.i(TAG, "gear via AAOS GEAR_SELECTION")
             _status.update { it.copy(gearAvailable = true) }
             return
         }
         val gear = vehicle.getGear()
         gear.getCurrentGearSelectionState(
-            { g -> emit(VehicleSignal.GearChanged(g.toGearPosition(), now())); _status.update { it.copy(gearAvailable = true) } },
+            { g -> Log.i(TAG, "gear (Pleos) = $g"); emit(VehicleSignal.GearChanged(g.toGearPosition(), now())); _status.update { it.copy(gearAvailable = true) } },
             { e -> fail("gear.get", e) },
         )
         gear.registerGearSelection(gearListener)
@@ -149,6 +198,7 @@ class PleosVehicleSignalSource(
         val brake = vehicle.getBrake()
         brake.checkBrakePedalStatusCapabilities(
             { config ->
+                Log.i(TAG, "brake capability=${config?.accessType}")
                 if (config?.accessType == AccessType.READ || config?.accessType == AccessType.READ_WRITE) {
                     brake.getCurrentBrakePedalStatus({ p -> p?.let { emit(VehicleSignal.BrakePedal(it, now())) } }, { fail("brake.get", it) })
                     brake.registerBrakePedalStatus(brakeListener)
@@ -164,6 +214,7 @@ class PleosVehicleSignalSource(
         door.checkDoorPositionCapabilities(
             { _, areaMap ->
                 val supported = areaMap?.keys ?: emptySet()
+                Log.i(TAG, "door areas supported=${supported.size}")
                 doorAreas.forEach { (slot, area) ->
                     if (supported.none { it == area }) return@forEach
                     val listener = object : DoorPositionListener {
@@ -185,6 +236,7 @@ class PleosVehicleSignalSource(
     override fun stop() {
         if (!started) return
         started = false
+        pollJob?.cancel(); pollJob = null
         runCatching { vehicle.getSteeringWheel().unregisterSteeringWheelAngle(steeringListener) }
         @Suppress("DEPRECATION")
         if (pleosGearRegistered) runCatching { vehicle.getGear().unregisterGearSelection(gearListener) }
@@ -212,6 +264,15 @@ class PleosVehicleSignalSource(
 
     companion object {
         private const val TAG = "PleosSignalSource"
+
+        /**
+         * Sign normalisation. Measured on the Pleos_Connect_v2.1 AVD (Vehicle Service 2.3.22):
+         * Virtual Console "Steering Angle = +460" arrives from the SDK as -460. The app treats
+         * positive as clockwise (right), matching the console and the cluster, so the SDK value
+         * is negated here. Re-verify on a real vehicle before release.
+         */
+        private const val STEERING_SIGN = -1f
+        private const val STEERING_POLL_MS = 200L
 
         /** True when a Pleos Vehicle Service is installed (i.e. we are on a Pleos Connect AVD or vehicle). */
         fun isAvailable(context: Context): Boolean {

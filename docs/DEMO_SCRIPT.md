@@ -10,7 +10,7 @@
 1. `adb install -r apk/pleos-steerin_ParkingMaster_release.apk`
 2. 앱 실행 → 권한 허용(AVD) → 상단 칩이 **Pleos Vehicle SDK**(A) 또는 **시뮬레이션 모드**(B)인지 확인.
 3. 음성 안내 켬 상태 확인, 볼륨 확인.
-4. A의 경우 Virtual Console을 두 번째 모니터에 띄우고 **Motion** 카드(기어·브레이크·조향각)와 **Convenience** 카드(트렁크)를 열어 둔다.
+4. A의 경우 터미널에서 `adb forward tcp:8088 tcp:8088` 실행 후 브라우저로 `http://127.0.0.1:8088/` 에 접속해 Virtual Console을 두 번째 모니터에 띄우고, **Emulation Controls → Motion** 카드(Gear Selection P/R/N/D, Brake Pedal 0~100%, Steering Angle −540~540°)와 **Convenience** 카드(Trunk / Frunk Position)를 열어 둔다. (에뮬레이터 v2.1.0 이상 필요)
 
 ## 흐름
 

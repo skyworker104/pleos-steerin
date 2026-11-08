@@ -120,8 +120,8 @@ cp app/build/outputs/apk/release/app-release.apk apk/<팀명>_ParkingMaster_rele
 
 ## 11. 남은 작업 (우선순위)
 
-1. Pleos AVD에서 조향각 콜백 주기·분해능 실측 → 허용 오차/히스테리시스 재보정.
-2. 조향각 부호(+가 우측인지) AVD에서 확인 후 필요 시 `PleosVehicleSignalSource`에서 반전.
+1. ~~Pleos AVD 조향각 콜백 확인~~ → 실측: 1° 단위 즉시 콜백(Virtual Console 변경 시 수십 ms 내 수신). 실차 주기는 별도 확인.
+2. ~~조향각 부호 확인~~ → 2026-11-08 AVD 실측: Virtual Console +460 → SDK −460. `PleosVehicleSignalSource.STEERING_SIGN = -1`로 앱 내부(+ = 우측)로 정규화함. 실차에서 재확인 필요.
 3. Pleos TextToSpeech SDK 공개 시 `VoiceCoach` 교체.
 4. `CarInfo` 제원에서 축거 읽어 `VehicleGeometry` 자동 설정(현재 SDK 공개 API에는 치수 getter가 없어 기본값 사용).
 5. 세션 로그 JSON 저장·리플레이, 주차 이력 화면.

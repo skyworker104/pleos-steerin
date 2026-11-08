@@ -109,9 +109,13 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                 if (phase != lastPhase) {
                     lastPhase = phase
                     lastSnapped = false
+                    android.util.Log.i("ParkingCoach", "phase=$phase target=${d.target.targetDeg.toInt()} rot=${d.target.headingChangeDeg.toInt()}")
                     _voice.tryEmit(VoiceEvent.Say(phasePrompt(phase, state.side)))
                 }
-                if (d.snapped && !lastSnapped) _voice.tryEmit(VoiceEvent.SnapTone)
+                if (d.snapped && !lastSnapped) {
+                    android.util.Log.i("ParkingCoach", "snapped phase=$phase steering=${state.snapshot.steeringDeg.toInt()}")
+                    _voice.tryEmit(VoiceEvent.SnapTone)
+                }
                 lastSnapped = d.snapped
                 lastResultAnnounced = null
             }
@@ -119,6 +123,7 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                 lastPhase = null
                 if (lastResultAnnounced != d.score.total) {
                     lastResultAnnounced = d.score.total
+                    android.util.Log.i("ParkingCoach", "result total=${d.score.total} tier=${d.score.tier} ${d.score.categories.joinToString { "${it.category}=${it.points}" }}")
                     _voice.tryEmit(VoiceEvent.Say(R.string.voice_result, listOf(d.score.total)))
                 }
             }

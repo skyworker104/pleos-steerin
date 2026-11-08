@@ -7,9 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.steerin.parkingmaster.presentation.ui.SteerinApp
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinTheme
 import com.steerin.parkingmaster.presentation.ux.UxRestrictionsMonitor
@@ -37,10 +35,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Voice is collected for the whole Activity lifetime (not only while STARTED): on Pleos Connect the
+        // system rear-view camera takes the foreground as soon as R is engaged, and audio-first coaching
+        // must keep working behind it. Signals keep flowing because the ViewModel outlives the window.
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.voice.collect { if (viewModel.ui.value.voiceEnabled) voiceCoach.handle(it) } }
-            }
+            viewModel.voice.collect { if (viewModel.ui.value.voiceEnabled) voiceCoach.handle(it) }
         }
 
         if (isAutomotive()) {
