@@ -60,7 +60,7 @@ children.push(p([new TextRun({ text: "Pleos Vehicle SDK 실시간 차량 신호 
 children.push(table([2000, 2819, 2000, 2819], [
   ["공모전명", "현대자동차그룹 차량용 앱 개발 공모전 2026", "참가 구분", "일반인 부문"],
   ["출품작명", "나는야 주차왕 (Parking Master)", "분야", "스마트 드라이빙·안전 (Pleos Connect 앱)"],
-  ["팀 구성", "2인 (앱·SDK 개발 1, UI/UX 1)", "핵심 연동", "Pleos Vehicle SDK 2.3.2 + AAOS Car API"],
+  ["팀명 / 구성", "6학년5반 · 2인 (앱·SDK 개발 1, UI/UX 1)", "핵심 연동", "Pleos Vehicle SDK 2.3.2 + AAOS Car API"],
   ["저장소", "github.com/skyworker104/pleos-steerin", "제출물", "소스 코드, release APK, 시연 영상"],
 ], { headerRows: 0 }));
 children.push(p("※ 심사 자료 익명성 지침에 따라 본 문서에는 성명·연락처 등 개인정보를 기재하지 않았습니다.", { size: 16, color: GREY, before: 80, after: 160 }));
@@ -98,7 +98,7 @@ children.push(p("등급: 90점 이상 명예 주차왕 / 70–89 안전 주차 �
 children.push(h2("3.3 Driving UX 및 안전 설계"));
 children.push(bullet([b("상태 머신: "), r("DRIVING(최소 UI, 터치 없음) → COACHING(링 + 한 줄 지시, 읽기 전용) → RESULT(P 체결 시에만, 터치 허용). Google Design for Driving 원칙을 따릅니다.")]));
 children.push(bullet([b("주행 제한 연동: "), r("CarUxRestrictionsManager를 구독해 주행 제한 상태에서는 보조 텍스트와 데모 패널을 숨깁니다.")]));
-children.push(bullet([b("음성 우선: "), r("단계 전환 시 TTS로 안내해 운전자의 시선이 거울과 후방 카메라에 머물도록 합니다. 링은 확인용 보조 채널입니다. Pleos TextToSpeech SDK 공개 시 동일 문구로 교체합니다.")]));
+children.push(bullet([b("음성 우선: "), r("단계 전환 시 Pleos TextToSpeech SDK(ON_DEVICE)로 안내해 운전자의 시선이 거울과 후방 카메라에 머물도록 합니다. Pleos Connect에서는 R 기어 시 시스템 후방 카메라가 화면을 점유하므로 음성이 주 채널이고 링은 확인용입니다(에뮬레이터 실측).")]));
 children.push(bullet([b("현대차그룹 UX 라이팅 3원칙 적용: "), r("정확성·일관성·간결성. 예) \"화면의 녹색 가이드에 맞춰 핸들을 우측으로 돌려주세요.\" / \"조향 정렬이 완료되었습니다. 이 각도를 유지하세요.\" / \"후진 전에 도어와 트렁크가 모두 닫혔는지 확인하세요.\"")]));
 
 children.push(h2("3.4 스마트 코칭 트리거"));
@@ -133,14 +133,14 @@ children.push(table([1500, 2600, 3538, 2000], [
   ["주행 제한", "AAOS CarUxRestrictionsManager", "onUxRestrictionsChanged", "—"],
 ]));
 children.push(h2("5.3 현재 구현 상태 (1차 제출 시점)"));
-children.push(bullet([b("완료: "), r("데이터 계층(Vehicle SDK·AAOS·시뮬레이터), 자전거 모델, Ghost 목표각 플래너, 100점 채점 엔진, R→P 세션 상태 머신, Compose UI(대기·코칭·결과·데모 패널), TTS 음성, 단위 테스트 20건, release APK.")]));
+children.push(bullet([b("완료: "), r("데이터 계층(Vehicle SDK·AAOS·시뮬레이터), 자전거 모델, Ghost 목표각 플래너, 100점 채점 엔진, R→P 세션 상태 머신, Compose UI(대기·코칭·결과·데모 패널), Pleos TTS 음성, 단위 테스트 21건, release APK. Pleos Connect 에뮬레이터(v2.1.0)에서 조향각·기어·차속·브레이크·도어 실수신과 채점·음성 재생을 확인했습니다.")]));
 children.push(bullet([b("시연 방식: "), r("Pleos Connect AVD에서는 Virtual Console의 Motion(기어·브레이크·조향각)·Convenience(트렁크) 카드로 신호를 넣습니다. Vehicle Service가 없는 기기에서는 내장 시뮬레이터(모범 주차·초보 주차 시나리오, 수동 슬라이더)로 동일한 흐름을 재현합니다.")]));
 children.push(bullet([b("PT까지: "), r("Pleos AVD에서 조향각 콜백 주기·분해능 실측 후 허용 오차 재보정, 조향각 부호 확인, 세션 로그 저장·리플레이, 주차 이력 화면.")]));
 children.push(h2("5.4 일정"));
 children.push(table([2200, 7438], [
   ["기간", "작업"],
   ["~11/15 (1차 접수)", "기획서·소스·APK·시연 영상 제출"],
-  ["11/16 ~ 11/22", "Pleos AVD 실측 보정, 조향각 부호·업데이트 주기 검증, UX 라이팅 다듬기"],
+  ["11/16 ~ 11/22", "조향각 부호 정규화 완료, 콜백 주기 보강(폴링) 완료 → 시연 영상·PT 대본 리허설, UX 라이팅 다듬기"],
   ["11/23 ~ 12/2", "세션 로그·이력, PT 대본 리허설(Virtual Console 경로 + 시뮬레이터 경로 이중화)"],
   ["12/3 ~ 12/4", "오프라인 PT 실동작 시연"],
   ["12/19 ~ 2027.1", "전시용 APK 안정화, Pleos TTS SDK 전환, 실차 테스트 기회 확보 시 모델 재보정"],

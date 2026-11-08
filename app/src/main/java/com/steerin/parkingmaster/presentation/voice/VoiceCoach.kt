@@ -8,30 +8,69 @@ import android.util.Log
 import com.steerin.parkingmaster.presentation.VoiceEvent
 import java.util.Locale
 
+/** Minimal contract shared by the Pleos and Android speech back-ends. */
+interface VoiceEngine {
+    val ready: Boolean
+    val unavailable: Boolean
+    fun start()
+    fun speak(text: String)
+    fun shutdown()
+}
+
+/** Android platform TextToSpeech (phones, generic emulators). */
+class AndroidTtsEngine(private val context: Context) : VoiceEngine {
+    @Volatile override var ready = false
+        private set
+    @Volatile override var unavailable = false
+        private set
+    private var pending: String? = null
+    private var tts: TextToSpeech? = null
+
+    override fun start() {
+        tts = TextToSpeech(context) { status ->
+            ready = status == TextToSpeech.SUCCESS
+            unavailable = !ready
+            if (ready) {
+                val res = tts?.setLanguage(Locale.KOREAN)
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Log.w(TAG, "Korean voice missing; using default locale")
+                    tts?.setLanguage(Locale.getDefault())
+                }
+                tts?.setSpeechRate(1.0f)
+                pending?.let { speak(it) }
+                pending = null
+            } else {
+                Log.w(TAG, "Android TTS unavailable (status=$status)")
+            }
+        }
+    }
+
+    override fun speak(text: String) {
+        if (!ready) { pending = text; return }
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "steerin-${text.hashCode()}")
+    }
+
+    override fun shutdown() {
+        runCatching { tts?.stop(); tts?.shutdown() }
+    }
+
+    companion object { private const val TAG = "AndroidTts" }
+}
+
 /**
  * Audio channel for coaching. Audio-first guidance keeps the driver's eyes on mirrors and the
  * rear-view camera; the ghost ring is the glanceable confirmation, not the primary channel.
  *
- * Uses Android TextToSpeech today; swaps to the Pleos TextToSpeech SDK once it opens to
- * third-party apps (same prompt strings).
+ * Engine selection: Pleos TextToSpeech SDK (ON_DEVICE) when the Pleos speech service exists,
+ * otherwise Android TextToSpeech. If the preferred engine fails to initialise, the other is used.
  */
 class VoiceCoach(private val context: Context) {
 
-    private var ready = false
-    private var pending: String? = null
-    private val tts: TextToSpeech = TextToSpeech(context) { status ->
-        ready = status == TextToSpeech.SUCCESS
-        if (ready) {
-            val res = tts.setLanguage(Locale.KOREAN)
-            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.w(TAG, "Korean TTS voice missing; falling back to default locale")
-                tts.setLanguage(Locale.getDefault())
-            }
-            tts.setSpeechRate(1.0f)
-            pending?.let { speak(it) }
-            pending = null
-        }
-    }
+    private val engines: List<VoiceEngine> = buildList {
+        if (PleosTtsEngine.isAvailable(context)) add(PleosTtsEngine(context))
+        add(AndroidTtsEngine(context))
+    }.onEach { it.start() }
+
     private val tone: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()
 
     fun handle(event: VoiceEvent) {
@@ -42,16 +81,17 @@ class VoiceCoach(private val context: Context) {
     }
 
     private fun speak(text: String) {
-        if (!ready) { pending = text; return }
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "steerin-${text.hashCode()}")
+        // First engine that is ready wins; while none is ready yet, queue on the first one that
+        // has not failed so the prompt plays as soon as initialisation completes.
+        val target = engines.firstOrNull { it.ready } ?: engines.firstOrNull { !it.unavailable } ?: return
+        Log.i(TAG, "speak via ${target::class.simpleName}: $text")
+        target.speak(text)
     }
 
     fun shutdown() {
-        runCatching { tts.stop(); tts.shutdown() }
+        engines.forEach { it.shutdown() }
         runCatching { tone?.release() }
     }
 
-    companion object {
-        private const val TAG = "VoiceCoach"
-    }
+    companion object { private const val TAG = "VoiceCoach" }
 }

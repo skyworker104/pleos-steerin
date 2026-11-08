@@ -49,7 +49,7 @@ pres.defineSlideMaster({
   background: { color: H.lt1 },
   objects: [
     { placeholder: { options: { name: "title", type: "title", x: M, y: 0.45, w: W - 2 * M, h: 0.8, fontSize: 28, bold: true, color: C.text1, align: "left", margin: 0 } } },
-    { text: { text: "나는야 주차왕 · 현대자동차그룹 차량용 앱 개발 공모전", options: { x: M, y: Hh - 0.45, w: 8, h: 0.3, fontSize: 10, color: C.text2, margin: 0 } } },
+    { text: { text: "6학년5반 · 나는야 주차왕 · 현대자동차그룹 차량용 앱 개발 공모전", options: { x: M, y: Hh - 0.45, w: 8, h: 0.3, fontSize: 10, color: C.text2, margin: 0 } } },
   ],
   slideNumber: { x: W - M - 0.6, y: Hh - 0.45, w: 0.6, h: 0.3, fontSize: 10, color: H.dk2, align: "right" },
 });
@@ -93,7 +93,7 @@ pres.addSection({ title: "소개" });
   wheel(s, W / 2 - 0.25, 1.75, 0.85, H.accent2, { lineW: 5 });
   s.addText("나는야 주차왕", { placeholder: "title" });
   s.addText("Pleos Vehicle SDK 실시간 차량 신호로 후진 주차 과정을 채점하고, Ghost Ring으로 조향을 코칭하는 Pleos Connect 앱", { placeholder: "body" });
-  text(s, "현대자동차그룹 차량용 앱 개발 공모전 2026 · 일반인 부문 · 스마트 드라이빙·안전", M, 5.4, W - 2 * M, 0.4, { size: 14, color: C.text2, align: "center" });
+  text(s, "팀 6학년5반 · 현대자동차그룹 차량용 앱 개발 공모전 2026 · 일반인 부문 · 스마트 드라이빙·안전", M, 5.4, W - 2 * M, 0.4, { size: 14, color: C.text2, align: "center" });
   s.addNotes("타이틀. 핵심 메시지: 스마트폰이 못 하는 것(조향각·기어 실시간 읽기)을 Pleos Connect 앱이 한다.");
 }
 
@@ -147,7 +147,7 @@ pres.addSection({ title: "핵심 기능" });
     "허용 오차 안에 포개지면 녹색 전환 + 확인음",
     "단계별 허용 오차: 풀 록 30° → 풀기 20° → 직진 5°",
     "지시문은 한 문장, 한 행동 (현대차 UX 라이팅 3원칙)",
-    "음성이 주 채널, 링은 확인용",
+    "음성이 주 채널(Pleos TTS SDK), 링은 확인용",
   ], rx + 0.3, 2.4, rw - 0.6, 3.5, { size: 13, psa: 8 });
   s.addNotes("핵심 UX. 인지 부하를 줄이는 것이 목적. 숫자 지시 금지.");
 }
@@ -283,9 +283,9 @@ pres.addSection({ title: "구현" });
   card(s, rx, 1.65, rw, 4.5);
   text(s, "기술 스택", rx + 0.3, 1.83, rw - 0.6, 0.35, { size: 15, bold: true, color: H.accent1 });
   bullets(s, [
-    "Pleos Connect (AAOS, API 28+)",
+    "Pleos Connect (AAOS, API 28+) · Vehicle SDK 2.3.2 · TTS SDK 3.3.1",
     "Kotlin 2.0 · Jetpack Compose · StateFlow",
-    "ai.pleos.playground:Vehicle:2.3.2",
+    "에뮬레이터 v2.1.0에서 실측 검증 완료",
     "AGP 8.8.2 · Gradle 8.10.2 · JDK 17 (공식 샘플 앱 기준선)",
     "Vehicle Service 감지 시 SDK, 없으면 시뮬레이터로 자동 전환",
     "12.3\" 1920×720 와이드 레이아웃, 다크 테마",
@@ -318,7 +318,7 @@ pres.addSection({ title: "구현" });
   card(s, M, 5.2, W - 2 * M, 1.4);
   text(s, "검증", M + 0.3, 5.35, 2, 0.35, { size: 15, bold: true, color: H.accent2 });
   bullets(s, [
-    "단위 테스트 20건: 채점 수식 7, 자전거 모델 4, Ghost 플래너 4, 세션 상태 머신 5 (모범 ≥ 90점·초보 < 70점 보증)",
+    "단위 테스트 21건 + Pleos Connect 에뮬레이터 실측: 5개 신호 실수신, 채점, 온디바이스 TTS 재생 확인",
     "GitHub 저장소에 소스 · release APK · 빌드 재현용 서명 키 포함",
   ], M + 0.3, 5.75, W - 2 * M - 0.6, 0.8, { size: 12.5, psa: 4 });
   s.addNotes("PT 리스크 대비: AVD 문제 시 경로 B로 즉시 전환. 두 경로의 화면 흐름은 동일.");
@@ -333,7 +333,7 @@ pres.addSection({ title: "사업성" });
   const cols = [
     ["타깃", H.accent1, ["1차: 면허 3년 이내 · 차량 교체 직후의 Pleos Connect 운전자", "2차: 가족 차량을 공유하는 동승자·초보 가족", "차량특화: 폰으로는 구현 불가한 기능"]],
     ["가정 지표 (출시 후 검증)", H.accent4, ["대상 모수: 탑재 차량의 20%", "MAU/설치: 45% — R 기어 진입 시 자동 동작, 실행 부담 없음", "30일 리텐션: 35% — 매 주차마다 점수 갱신, 70점↑ 조용한 모드로 피로도 억제", "세션 30~60초, 주행 중 사용 없음"]],
-    ["확장 로드맵", H.accent2, ["ADAS SDK 공개 시 후방 거리 → 안전 항목", "Pleos TTS SDK 전환, 평행 주차 시나리오", "운전자 동의 기반 블루멤버스·정비·UBI 연계는 제휴 전제 로드맵 (본 제출본은 앱 내 등급·배지까지)"]],
+    ["확장 로드맵", H.accent2, ["ADAS SDK 공개 시 후방 거리 → 안전 항목", "평행 주차 시나리오, 세션 리플레이·주차 이력", "운전자 동의 기반 블루멤버스·정비·UBI 연계는 제휴 전제 로드맵 (본 제출본은 앱 내 등급·배지까지)"]],
   ];
   cols.forEach(([t, color, items], i) => {
     const x = M + i * (cw + 0.4);
@@ -352,10 +352,10 @@ pres.addSection({ title: "마무리" });
   const rows = [
     ["기간", "작업"],
     ["~11/15", "1차 접수: 기획서 · 소스 · release APK · 시연 영상"],
-    ["11/16 ~ 11/22", "Pleos AVD 실측: 조향각 콜백 주기·분해능·부호 확인 → 허용 오차 재보정"],
+    ["11/16 ~ 11/22", "실측 결과 반영(조향각 부호·폴링 완료) → 시연 영상, UX 라이팅 다듬기"],
     ["11/23 ~ 12/2", "세션 로그·주차 이력, PT 리허설 (AVD 경로 + 시뮬레이터 경로 이중화)"],
     ["12/3 ~ 12/4", "오프라인 PT 실동작 시연"],
-    ["12/19 ~ 2027.1", "전시용 APK 안정화, TTS SDK 전환, 실차 테스트 시 모델 재보정"],
+    ["12/19 ~ 2027.1", "전시용 APK 안정화, 실차 테스트 시 모델 재보정"],
   ];
   s.addTable(rows.map((r, i) => r.map((c, j) => ({ text: c, options: { bold: i === 0 || j === 0, color: i === 0 ? H.lt1 : (j === 0 ? H.accent1 : H.dk1), fill: { color: i === 0 ? H.accent1 : (i % 2 ? H.lt2 : H.accent5) }, fontSize: 13, margin: [4, 8, 4, 8] } }))),
     { x: M, y: 1.6, w: 7.6, colW: [1.9, 5.7], border: { type: "solid", color: H.lt1, pt: 1 }, objectName: "schedule-table" });

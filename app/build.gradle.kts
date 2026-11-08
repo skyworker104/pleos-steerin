@@ -85,6 +85,8 @@ dependencies {
 
     // Pleos Connect Vehicle SDK (steering angle, gear, brake, door)
     implementation(libs.pleos.vehicle)
+    // Pleos Connect TextToSpeech SDK (on-device voice coaching; Android TTS is the fallback elsewhere)
+    implementation(libs.pleos.tts)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -13,6 +13,8 @@
     <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.CAR_SPEED" />
     <uses-permission android:name="pleos.car.permission.CAR_INFO" />
+    <!-- Pleos TextToSpeech SDK (on-device mode) -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <!-- AAOS Car API: PERF_VEHICLE_SPEED (same source as the Pleos cluster per official FAQ) -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <!-- AAOS Car API: GEAR_SELECTION (Pleos Gear domain is deprecated in SDK 2.3.2 in favour of this) -->
