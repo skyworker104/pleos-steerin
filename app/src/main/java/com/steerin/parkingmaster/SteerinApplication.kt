@@ -2,6 +2,7 @@ package com.steerin.parkingmaster
 
 import android.app.Application
 import android.util.Log
+import com.steerin.parkingmaster.data.session.SessionRepository
 import com.steerin.parkingmaster.data.vehicle.PleosVehicleSignalSource
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
 import com.steerin.parkingmaster.data.vehicle.VehicleSignalSource
@@ -19,8 +20,13 @@ class SteerinApplication : Application() {
     var simulator: SimulatedVehicleSignalSource? = null
         private set
 
+    /** On-device store for parking sessions (history + replay). */
+    lateinit var sessionRepository: SessionRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
+        sessionRepository = SessionRepository(this)
         signalSource = if (PleosVehicleSignalSource.isAvailable(this)) {
             Log.i(TAG, "Pleos Vehicle Service detected → using Vehicle SDK")
             PleosVehicleSignalSource(this)

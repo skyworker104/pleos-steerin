@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
 
 /** DRIVING state: minimal, informational. The only control is the parking-side preference. */
 @Composable
-fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit) {
+fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistory: () -> Unit = {}) {
     val snapshot = ui.tracker.snapshot
     Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(0.42f).fillMaxHeight(), contentAlignment = Alignment.Center) {
@@ -62,9 +62,13 @@ fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit) {
             if (!ui.uxRestricted) {
                 Text(stringResource(R.string.setting_side), style = MaterialTheme.typography.labelLarge, color = SteerinColors.Muted)
                 Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     SideChip(stringResource(R.string.side_left), ui.tracker.side == ParkingSide.LEFT) { onSideChange(ParkingSide.LEFT) }
                     SideChip(stringResource(R.string.side_right), ui.tracker.side == ParkingSide.RIGHT) { onSideChange(ParkingSide.RIGHT) }
+                    Spacer(Modifier.width(12.dp))
+                    OutlinedButton(onClick = onOpenHistory, colors = ButtonDefaults.outlinedButtonColors(contentColor = SteerinColors.Cyan)) {
+                        Text(stringResource(R.string.standby_history) + if (ui.history.isNotEmpty()) " (${ui.history.size})" else "", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
                 Spacer(Modifier.height(20.dp))
             }

@@ -52,13 +52,23 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 * **음성 우선**: 단계 전환 시 음성으로 안내해 시선은 거울과 후방 카메라에 두도록 합니다. Pleos Connect에서는 **Pleos TextToSpeech SDK(ON_DEVICE 모드)** 로, 그 외 기기에서는 Android TTS로 재생합니다. R 기어에서 시스템 후방 카메라 앱이 화면을 점유하므로 음성이 주 채널이고 링은 확인용입니다.
 * UX 라이팅은 현대차그룹 3원칙(정확성·일관성·간결성)을 따릅니다. 모든 문구는 `app/src/main/res/values/strings.xml` 에 있습니다.
 
-### 2.4 어디서나 시연 가능
+### 2.4 주차 이력과 세션 리플레이
+* P 체결로 평가가 끝나면 세션(조향각·차속·기어·브레이크·도어 샘플)이 **차량 내부 저장소**에 자동 저장됩니다(최근 50건, 외부 전송 없음).
+* 대기 화면의 **주차 이력** 버튼 → 기록 수·평균·최고 점수와 세션별 점수·등급·항목 막대·지표를 보여 줍니다.
+* **다시 보기**는 저장된 신호를 별도 트래커로 다시 흘려 보내 같은 Ghost Ring 코칭 화면과 결과 카드를 재생합니다(1x/2x/4x, 일시정지). 운전자가 "그때 어디서 핸들을 늦게 풀었는지"를 눈으로 복기할 수 있고, 음성은 재생하지 않습니다.
+* 이력·리플레이는 정차(P) 상태에서만 열리며, 주행 중 R 기어가 들어오면 자동으로 코칭 화면으로 돌아갑니다.
+
+| 주차 이력 (Pleos 에뮬레이터) | 세션 리플레이 (Pleos 에뮬레이터) |
+| :--: | :--: |
+| ![history](docs/screenshots/07_history_pleos.png) | ![replay](docs/screenshots/08_replay_pleos.png) |
+
+### 2.5 어디서나 시연 가능
 * **Pleos Connect AVD / 실차**: Vehicle Service가 감지되면 자동으로 Vehicle SDK 경로를 사용합니다. Virtual Console의 Motion(기어·브레이크·조향각)·Convenience(트렁크) 카드로 신호를 넣을 수 있습니다.
 * **그 외 모든 Android 기기/에뮬레이터**: Vehicle Service가 없으면 내장 시뮬레이터로 전환됩니다. "모범 주차", "초보 주차" 시나리오 재생과 수동 슬라이더를 제공하므로 동일한 데모 스크립트를 재현할 수 있습니다.
 
 ---
 
-## 2.5 화면 (시뮬레이션 모드, 일반 에뮬레이터 캡처)
+## 2.6 화면 (시뮬레이션 모드, 일반 에뮬레이터 캡처)
 
 | 대기 | 코칭 (Snap-In) | 결과 |
 | :--: | :--: | :--: |
@@ -134,6 +144,7 @@ cd pleos-steerin
 
 ```
 app/src/main/java/com/steerin/parkingmaster/
+ ├── data/session/SessionRepository.kt      # 세션 파일 저장소 (filesDir/sessions)
  ├── data/vehicle/
  │    ├── VehicleSignal.kt                 # 정규화된 신호 모델
  │    ├── VehicleSignalSource.kt           # 데이터 소스 인터페이스
@@ -144,13 +155,13 @@ app/src/main/java/com/steerin/parkingmaster/
  │    ├── kinematics/BicycleModel.kt       # 운동학 자전거 모델 (상대 방위각 추정)
  │    ├── coaching/GhostTargetPlanner.kt   # 단계별 목표 조향각 (READY→TURN_IN→STRAIGHTEN→HOLD)
  │    ├── scoring/ParkingScoreEvaluator.kt # 100점 과정 채점 엔진
- │    └── session/ParkingSessionTracker.kt # R→P 세션 기록 + Driving 상태 머신
+ │    └── session/  ParkingSessionTracker(R→P 세션·상태 머신) · SessionCodec(텍스트 저장 포맷) · SessionReplayer
  └── presentation/
-      ├── ParkingViewModel.kt / MainActivity.kt
-      ├── ui/  GhostRing · CoachingScreen · ResultScreen · StandbyScreen · DemoPanel
+      ├── ParkingViewModel.kt / ReplayController.kt / MainActivity.kt
+      ├── ui/  GhostRing · CoachingScreen · ResultScreen · StandbyScreen · HistoryScreen · ReplayScreen · DemoPanel
       ├── ux/UxRestrictionsMonitor.kt      # CarUxRestrictions 연동
-      └── voice/VoiceCoach.kt              # TTS 안내 + Snap-In 확인음
-app/src/test/…                             # 단위 테스트 4종 (채점·모델·플래너·세션)
+      └── voice/  VoiceCoach · PleosTtsEngine   # Pleos TTS SDK(ON_DEVICE) / Android TTS 폴백 + Snap-In 확인음
+app/src/test/…                             # 단위 테스트 24건 (채점·모델·플래너·세션·코덱/리플레이)
 docs/                                      # SCORING.md, DEMO_SCRIPT.md, 분석 보고서
 apk/                                       # 제출용 release APK
 ```
@@ -160,7 +171,7 @@ apk/                                       # 제출용 release APK
 ## 6. 로드맵
 
 * **지금 (공모전 제출본)**: 위 기능 전체. 12.3인치 와이드 레이아웃, 시뮬레이션 모드 포함.
-* **PT 이후**: CarInfo 제원 기반 축거 자동 보정, 세션 로그 저장·리플레이, 주차 이력과 배지, 실차에서 조향각 부호·콜백 주기 재확인.
+* **PT 이후**: CarInfo 제원 기반 축거 자동 보정, 배지·목표 점수 설정, 실차에서 조향각 부호·콜백 주기 재확인.
 * **상용화 검토 단계**: 블루멤버스 포인트·정비 쿠폰·UBI 보험 연계는 **제휴가 전제된 로드맵** 입니다. 본 제출본은 앱 내 등급·배지까지만 구현하며, 운전 데이터의 외부 제공은 별도의 명시적 동의 설계가 필요합니다.
 
 ## 7. 라이선스 / 고지

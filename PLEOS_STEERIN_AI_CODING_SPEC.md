@@ -124,4 +124,4 @@ cp app/build/outputs/apk/release/app-release.apk apk/6학년5반_나는야주차
 2. ~~조향각 부호 확인~~ → 2026-11-08 AVD 실측: Virtual Console +460 → SDK −460. `PleosVehicleSignalSource.STEERING_SIGN = -1`로 앱 내부(+ = 우측)로 정규화함. 실차에서 재확인 필요.
 3. ~~Pleos TextToSpeech SDK 교체~~ → 완료(3.3.1, ON_DEVICE 모드, `PleosTtsEngine`). AVD에서 한국어 합성·재생 확인. Android TTS는 폴백.
 4. `CarInfo` 제원에서 축거 읽어 `VehicleGeometry` 자동 설정(현재 SDK 공개 API에는 치수 getter가 없어 기본값 사용).
-5. 세션 로그 JSON 저장·리플레이, 주차 이력 화면.
+5. ~~세션 로그 저장·리플레이, 주차 이력 화면~~ → 완료. `SessionCodec`(텍스트 포맷) · `SessionRepository`(filesDir/sessions, 최근 50건) · `SessionReplayer` · `ReplayController` · `HistoryScreen`/`ReplayScreen`. 리플레이는 별도 트래커로 동일 점수를 재현(단위 테스트로 보증).

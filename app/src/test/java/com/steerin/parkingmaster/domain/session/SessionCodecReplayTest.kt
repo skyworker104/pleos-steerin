@@ -1,0 +1,61 @@
+package com.steerin.parkingmaster.domain.session
+
+import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
+import com.steerin.parkingmaster.domain.model.ParkingSide
+import com.steerin.parkingmaster.domain.model.SessionRecord
+import com.steerin.parkingmaster.domain.scoring.ParkingScoreEvaluator
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class SessionCodecReplayTest {
+
+    private fun recordedModelSession(): Pair<DrivingState.Result, ParkingSide> {
+        val tracker = ParkingSessionTracker().also { it.setSide(ParkingSide.LEFT) }
+        var result: DrivingState.Result? = null
+        SimulatedVehicleSignalSource.signals(SimulatedVehicleSignalSource.MODEL_PARKING, 50).forEach { s ->
+            (tracker.onSignal(s).driving as? DrivingState.Result)?.let { result = it }
+        }
+        return checkNotNull(result) to ParkingSide.LEFT
+    }
+
+    @Test
+    fun `encode then decode preserves the log and header`() {
+        val (res, side) = recordedModelSession()
+        val rec = SessionRecord("20261108-120000-0001", 1_762_000_000_000L, side, res.log)
+        val text = SessionCodec.encode(rec)
+        val back = SessionCodec.decode(text)
+        assertEquals(rec.id, back.id)
+        assertEquals(rec.savedAtEpochMs, back.savedAtEpochMs)
+        assertEquals(rec.side, back.side)
+        assertEquals(rec.log.startedAtMs, back.log.startedAtMs)
+        assertEquals(rec.log.endedAtMs, back.log.endedAtMs)
+        assertEquals(rec.log.samples.size, back.log.samples.size)
+        assertEquals(rec.log.samples.first(), back.log.samples.first())
+        assertEquals(rec.log.samples.last(), back.log.samples.last())
+        assertTrue(text.startsWith("steerin-session 1"))
+    }
+
+    @Test
+    fun `replaying a decoded session reproduces the same score and phases`() {
+        val (res, side) = recordedModelSession()
+        val rec = SessionCodec.decode(SessionCodec.encode(SessionRecord("x", 0L, side, res.log)))
+        val tracker = ParkingSessionTracker().also { it.setSide(rec.side) }
+        val states = SessionReplayer.toSignals(rec.log).map { tracker.onSignal(it) }
+        val replayed = states.last().driving as DrivingState.Result
+        assertEquals(res.score.total, replayed.score.total)
+        assertEquals(res.score.categories.map { it.points }, replayed.score.categories.map { it.points })
+        val phases = states.mapNotNull { (it.driving as? DrivingState.Coaching)?.target?.phase }.distinct()
+        assertTrue("phases were $phases", phases.size >= 3)
+        // Ghost target sign must follow the stored side (LEFT → negative lock).
+        val firstTarget = states.firstNotNullOf { (it.driving as? DrivingState.Coaching)?.target }
+        assertTrue(firstTarget.targetDeg < 0f)
+    }
+
+    @Test
+    fun `evaluator on a decoded log equals the live score`() {
+        val (res, side) = recordedModelSession()
+        val rec = SessionCodec.decode(SessionCodec.encode(SessionRecord("y", 0L, side, res.log)))
+        assertEquals(res.score.total, ParkingScoreEvaluator().evaluate(rec.log).total)
+    }
+}

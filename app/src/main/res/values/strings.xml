@@ -89,4 +89,24 @@
     <string name="demo_brake">브레이크</string>
     <string name="demo_trunk">트렁크 열림</string>
     <string name="demo_footnote">Pleos Connect AVD에서는 이 패널 대신 Virtual Console의 Motion/Convenience 카드가 같은 신호를 보냅니다.</string>
+
+    <!-- History / replay (parked only) -->
+    <string name="standby_history">주차 이력</string>
+    <string name="history_title">주차 이력</string>
+    <string name="history_back">닫기</string>
+    <string name="history_empty">저장된 주차 기록이 없습니다. 후진 주차를 마치면 자동으로 저장됩니다.</string>
+    <string name="history_count">기록</string>
+    <string name="history_avg">평균</string>
+    <string name="history_best">최고</string>
+    <string name="history_replay">다시 보기</string>
+    <string name="history_delete">삭제</string>
+    <string name="history_metrics">%1$d초 · 조향 반전 %2$d회 · 방향 전환 %3$d회 · 최고 후진 속도 %4$.1f km/h</string>
+    <string name="replay_title">세션 리플레이</string>
+    <string name="replay_elapsed">%1$d / %2$d초</string>
+    <string name="replay_play">재생</string>
+    <string name="replay_pause">일시정지</string>
+    <string name="replay_restart">처음부터</string>
+    <string name="replay_done">리플레이가 끝났습니다.</string>
+    <string name="replay_loading">세션을 불러오는 중…</string>
+    <string name="result_saved">이 주차는 주차 이력에 저장되었습니다.</string>
 </resources>

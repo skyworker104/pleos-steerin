@@ -1,15 +1,19 @@
 package com.steerin.parkingmaster.presentation
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.SteerinApplication
+import com.steerin.parkingmaster.data.session.SessionRepository
 import com.steerin.parkingmaster.data.vehicle.GearPosition
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
 import com.steerin.parkingmaster.data.vehicle.SourceStatus
 import com.steerin.parkingmaster.domain.model.ManeuverPhase
 import com.steerin.parkingmaster.domain.model.ParkingSide
+import com.steerin.parkingmaster.domain.model.SessionLog
+import com.steerin.parkingmaster.domain.model.SessionSummary
 import com.steerin.parkingmaster.domain.session.DrivingState
 import com.steerin.parkingmaster.domain.session.ParkingSessionTracker
 import com.steerin.parkingmaster.domain.session.TrackerState
@@ -29,6 +33,9 @@ sealed interface VoiceEvent {
     data object SnapTone : VoiceEvent
 }
 
+/** Top-level navigation. Live coaching always wins: a session starting in R pulls the UI back to MAIN. */
+enum class AppScreen { MAIN, HISTORY, REPLAY }
+
 data class UiState(
     val tracker: TrackerState = TrackerState(),
     val source: SourceStatus? = null,
@@ -37,6 +44,9 @@ data class UiState(
     val voiceEnabled: Boolean = true,
     val uxRestricted: Boolean = false,
     val showDemoPanel: Boolean = false,
+    val screen: AppScreen = AppScreen.MAIN,
+    val history: List<SessionSummary> = emptyList(),
+    val lastSavedSessionId: String? = null,
 )
 
 class ParkingViewModel(app: Application) : AndroidViewModel(app) {
@@ -44,7 +54,10 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app as SteerinApplication
     private val source = container.signalSource
     private val simulator: SimulatedVehicleSignalSource? = container.simulator
+    private val repository: SessionRepository = container.sessionRepository
     private val tracker = ParkingSessionTracker()
+
+    val replay = ReplayController(viewModelScope)
 
     private val _ui = MutableStateFlow(UiState(simulationAvailable = simulator != null, showDemoPanel = simulator != null))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -56,15 +69,21 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private var lastPhase: ManeuverPhase? = null
     private var lastSnapped = false
     private var lastResultAnnounced: Int? = null
+    private var lastSavedLog: SessionLog? = null
 
     init {
         viewModelScope.launch { source.status.collect { s -> _ui.update { it.copy(source = s) } } }
+        viewModelScope.launch { repository.summaries.collect { list -> _ui.update { it.copy(history = list) } } }
+        viewModelScope.launch { repository.refresh() }
         simulator?.let { sim -> viewModelScope.launch { sim.playingScenarioId.collect { id -> _ui.update { it.copy(playingScenario = id) } } } }
         viewModelScope.launch {
             source.signals.collect { signal ->
                 val state = tracker.onSignal(signal)
                 _ui.update { it.copy(tracker = state) }
                 emitVoiceFor(state)
+                persistIfNewResult(state)
+                // A real manoeuvre starting while the driver browses history: bring coaching to front.
+                if (state.driving is DrivingState.Coaching && _ui.value.screen != AppScreen.MAIN) showMain()
             }
         }
     }
@@ -88,7 +107,45 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleVoice() = _ui.update { it.copy(voiceEnabled = !it.voiceEnabled) }
     fun toggleDemoPanel() = _ui.update { it.copy(showDemoPanel = !it.showDemoPanel) }
-    fun setUxRestricted(restricted: Boolean) = _ui.update { it.copy(uxRestricted = restricted) }
+    fun setUxRestricted(restricted: Boolean) {
+        _ui.update { it.copy(uxRestricted = restricted) }
+        if (restricted && _ui.value.screen != AppScreen.MAIN) showMain()
+    }
+
+    // --- navigation / history ------------------------------------------------------------
+    fun showMain() {
+        replay.stop()
+        _ui.update { it.copy(screen = AppScreen.MAIN) }
+    }
+
+    fun showHistory() {
+        replay.stop()
+        viewModelScope.launch { repository.refresh() }
+        _ui.update { it.copy(screen = AppScreen.HISTORY) }
+    }
+
+    fun openReplay(sessionId: String) {
+        viewModelScope.launch {
+            val record = repository.load(sessionId) ?: return@launch
+            replay.open(record)
+            _ui.update { it.copy(screen = AppScreen.REPLAY) }
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch { repository.delete(sessionId) }
+    }
+
+    private fun persistIfNewResult(state: TrackerState) {
+        val result = state.driving as? DrivingState.Result ?: return
+        if (result.log === lastSavedLog) return
+        lastSavedLog = result.log
+        viewModelScope.launch {
+            runCatching { repository.save(result.log, state.side) }
+                .onSuccess { rec -> _ui.update { it.copy(lastSavedSessionId = rec.id) } }
+                .onFailure { Log.w("ParkingCoach", "session save failed: ${it.message}") }
+        }
+    }
 
     // --- simulator bindings -------------------------------------------------------------
     fun playScenario(scenario: SimulatedVehicleSignalSource.Scenario) {
@@ -109,11 +166,11 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                 if (phase != lastPhase) {
                     lastPhase = phase
                     lastSnapped = false
-                    android.util.Log.i("ParkingCoach", "phase=$phase target=${d.target.targetDeg.toInt()} rot=${d.target.headingChangeDeg.toInt()}")
+                    Log.i("ParkingCoach", "phase=$phase target=${d.target.targetDeg.toInt()} rot=${d.target.headingChangeDeg.toInt()}")
                     _voice.tryEmit(VoiceEvent.Say(phasePrompt(phase, state.side)))
                 }
                 if (d.snapped && !lastSnapped) {
-                    android.util.Log.i("ParkingCoach", "snapped phase=$phase steering=${state.snapshot.steeringDeg.toInt()}")
+                    Log.i("ParkingCoach", "snapped phase=$phase steering=${state.snapshot.steeringDeg.toInt()}")
                     _voice.tryEmit(VoiceEvent.SnapTone)
                 }
                 lastSnapped = d.snapped
@@ -123,12 +180,17 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                 lastPhase = null
                 if (lastResultAnnounced != d.score.total) {
                     lastResultAnnounced = d.score.total
-                    android.util.Log.i("ParkingCoach", "result total=${d.score.total} tier=${d.score.tier} ${d.score.categories.joinToString { "${it.category}=${it.points}" }}")
+                    Log.i("ParkingCoach", "result total=${d.score.total} tier=${d.score.tier} ${d.score.categories.joinToString { "${it.category}=${it.points}" }}")
                     _voice.tryEmit(VoiceEvent.Say(R.string.voice_result, listOf(d.score.total)))
                 }
             }
             DrivingState.Driving -> lastPhase = null
         }
+    }
+
+    override fun onCleared() {
+        replay.stop()
+        super.onCleared()
     }
 
     companion object {

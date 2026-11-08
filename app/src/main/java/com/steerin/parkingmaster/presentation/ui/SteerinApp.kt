@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.data.vehicle.SourceKind
 import com.steerin.parkingmaster.domain.session.DrivingState
+import com.steerin.parkingmaster.presentation.AppScreen
 import com.steerin.parkingmaster.presentation.ParkingViewModel
 import com.steerin.parkingmaster.presentation.UiState
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
@@ -65,17 +66,24 @@ private fun SteerinContent(ui: UiState, viewModel: ParkingViewModel) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 TopStatusBar(ui, onToggleVoice = viewModel::toggleVoice, onToggleDemo = viewModel::toggleDemoPanel)
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    Crossfade(targetState = ui.tracker.driving::class, label = "screen") { kind ->
-                        when (kind) {
-                            DrivingState.Coaching::class -> {
-                                val coaching = ui.tracker.driving as? DrivingState.Coaching
-                                if (coaching != null) CoachingScreen(coaching, ui.tracker.snapshot, ui.tracker.side, ui.uxRestricted)
+                    when (ui.screen) {
+                        AppScreen.HISTORY -> HistoryScreen(
+                            sessions = ui.history, onBack = viewModel::showMain,
+                            onReplay = viewModel::openReplay, onDelete = viewModel::deleteSession,
+                        )
+                        AppScreen.REPLAY -> ReplayScreen(viewModel.replay, onClose = viewModel::showHistory)
+                        AppScreen.MAIN -> Crossfade(targetState = ui.tracker.driving::class, label = "screen") { kind ->
+                            when (kind) {
+                                DrivingState.Coaching::class -> {
+                                    val coaching = ui.tracker.driving as? DrivingState.Coaching
+                                    if (coaching != null) CoachingScreen(coaching, ui.tracker.snapshot, ui.tracker.side, ui.uxRestricted)
+                                }
+                                DrivingState.Result::class -> {
+                                    val result = ui.tracker.driving as? DrivingState.Result
+                                    if (result != null) ResultScreen(result.score, onAcknowledge = viewModel::acknowledgeResult)
+                                }
+                                else -> StandbyScreen(ui, onSideChange = viewModel::setSide, onOpenHistory = viewModel::showHistory)
                             }
-                            DrivingState.Result::class -> {
-                                val result = ui.tracker.driving as? DrivingState.Result
-                                if (result != null) ResultScreen(result.score, onAcknowledge = viewModel::acknowledgeResult)
-                            }
-                            else -> StandbyScreen(ui, onSideChange = viewModel::setSide)
                         }
                     }
                 }
