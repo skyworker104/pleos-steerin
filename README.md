@@ -49,6 +49,11 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 ### 2.3 Driving UX / 안전
 * 상태 머신: `DRIVING`(최소 UI, 터치 없음) → `COACHING`(링 + 한 줄 지시, 읽기 전용) → `RESULT`(P 체결 시에만, 터치 허용).
 * `CarUxRestrictionsManager` 를 구독해 주행 제한 상태에서는 데모 패널과 보조 텍스트를 숨깁니다.
+* **R 기어 구간의 전달 채널**: Pleos Connect는 기어가 P를 벗어나면 서드파티 액티비티를 차단하고(실측), 시스템 후방 카메라가 화면을 점유합니다. 그래서 코칭은 **음성(Pleos TTS) + 헤즈업 알림**(카메라 위 한 줄 배너, 단계 전환·정렬 완료 시 갱신)으로 전달하고, 화면(링·결과·이력·리플레이)은 P 상태에 집중합니다. 카메라 위 Ghost Ring 오버레이는 디버그 빌드 실험으로만 남겼습니다. 검토 기록: [`docs/CAMERA_POPUP_REVIEW.md`](docs/CAMERA_POPUP_REVIEW.md)
+
+| 헤즈업 알림 (카메라 위, 준비 단계) | 정렬 완료로 갱신 | 서드파티 액티비티 차단 화면 |
+| :--: | :--: | :--: |
+| ![hun](docs/screenshots/09_hun_over_camera.png) | ![hun snapped](docs/screenshots/10_hun_snapped_over_camera.png) | ![blocked](docs/screenshots/11_blocked_while_driving.png) |
 * **음성 우선**: 단계 전환 시 음성으로 안내해 시선은 거울과 후방 카메라에 두도록 합니다. Pleos Connect에서는 **Pleos TextToSpeech SDK(ON_DEVICE 모드)** 로, 그 외 기기에서는 Android TTS로 재생합니다. R 기어에서 시스템 후방 카메라 앱이 화면을 점유하므로 음성이 주 채널이고 링은 확인용입니다.
 * UX 라이팅은 현대차그룹 3원칙(정확성·일관성·간결성)을 따릅니다. 모든 문구는 `app/src/main/res/values/strings.xml` 에 있습니다.
 
@@ -90,6 +95,7 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 | 도어/트렁크 | Vehicle SDK `Door` | `checkDoorPositionCapabilities` → `registerDoorPosition(DoorArea(REAR …))` |
 | 차속 | AAOS `CarPropertyManager` | `PERF_VEHICLE_SPEED` (Pleos 공식 FAQ가 안내하는 클러스터 동일 소스) |
 | 주행 제한 | AAOS `CarUxRestrictionsManager` | `onUxRestrictionsChanged` |
+| 카메라 위 배너 | Android Notification (IMPORTANCE_HIGH, CATEGORY_NAVIGATION) | `CoachNotifier` — 액티비티가 전면이 아닐 때만 |
 | 음성 안내 | Pleos TextToSpeech SDK 3.3.1 | `TextToSpeech(context, Mode.ON_DEVICE).initialize` → `setLocale(KOREA)` → `speak` |
 
 권한: `pleos.car.permission.CAR_DRIVE`, `CAR_DOORS`, `CAR_SAFETY`, `CAR_INFO`, `TTS_SERVICE`, `android.car.permission.CAR_SPEED`(런타임), `CAR_POWERTRAIN`. (`READ_CAR_STEERING`·`CAR_SPEED`는 선언만 되어 있고 현재 이미지에는 정의되지 않은 권한으로 확인됨)
@@ -159,6 +165,7 @@ app/src/main/java/com/steerin/parkingmaster/
  └── presentation/
       ├── ParkingViewModel.kt / ReplayController.kt / MainActivity.kt
       ├── ui/  GhostRing · CoachingScreen · ResultScreen · StandbyScreen · HistoryScreen · ReplayScreen · DemoPanel
+      ├── overlay/  CoachNotifier(헤즈업 알림) · GhostOverlayWindow(디버그 실험)
       ├── ux/UxRestrictionsMonitor.kt      # CarUxRestrictions 연동
       └── voice/  VoiceCoach · PleosTtsEngine   # Pleos TTS SDK(ON_DEVICE) / Android TTS 폴백 + Snap-In 확인음
 app/src/test/…                             # 단위 테스트 24건 (채점·모델·플래너·세션·코덱/리플레이)

@@ -109,4 +109,10 @@
     <string name="replay_done">리플레이가 끝났습니다.</string>
     <string name="replay_loading">세션을 불러오는 중…</string>
     <string name="result_saved">이 주차는 주차 이력에 저장되었습니다.</string>
+
+    <!-- Coaching over the rear-view camera -->
+    <string name="notif_channel">후진 주차 코칭</string>
+    <string name="notif_channel_desc">후진 중 후방 카메라 화면 위에 표시되는 한 줄 코칭</string>
+    <string name="notif_title">나는야 주차왕</string>
+    <string name="notif_title_snapped">조향 정렬 완료</string>
 </resources>

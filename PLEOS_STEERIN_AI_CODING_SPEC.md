@@ -118,6 +118,12 @@ DRIVING ──(gear=R)──▶ COACHING ──(gear=P, 이동 있음, ≥2s)─
 cp app/build/outputs/apk/release/app-release.apk apk/6학년5반_나는야주차왕_release.apk
 ```
 
+## 10.5 R 기어 구간 전달 채널 (실측 기반)
+
+* Pleos Connect는 기어가 P를 벗어나면 `ActivityBlockingActivity`로 서드파티 액티비티를 차단한다(허용 목록은 시스템 앱 전용, `distractionOptimized` 메타데이터 무시). 후방 카메라(`ai.umos.drivingview`)도 전면을 차지한다.
+* 따라서 COACHING 상태의 시각 HUD는 P에서 미리 핸들을 돌리는 준비 단계와 리플레이에서만 보이고, R 구간은 `VoiceCoach`(Pleos TTS) + `CoachNotifier`(헤즈업 알림, 문구 변경 시 재알림)로 전달한다.
+* `GhostOverlayWindow`(TYPE_APPLICATION_OVERLAY)는 디버그 전용 실험. 상세: `docs/CAMERA_POPUP_REVIEW.md`.
+
 ## 11. 남은 작업 (우선순위)
 
 1. ~~Pleos AVD 조향각 콜백 확인~~ → 실측: 1° 단위 즉시 콜백(Virtual Console 변경 시 수십 ms 내 수신). 실차 주기는 별도 확인.

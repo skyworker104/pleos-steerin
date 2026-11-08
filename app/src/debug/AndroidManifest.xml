@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only: lets the experimental Ghost overlay be tried on the emulator
+     (adb shell appops set com.steerin.parkingmaster.debug SYSTEM_ALERT_WINDOW allow).
+     Not shipped in release: Pleos Connect offers drivers no way to grant it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+</manifest>

@@ -13,6 +13,8 @@
     <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.CAR_SPEED" />
     <uses-permission android:name="pleos.car.permission.CAR_INFO" />
+    <!-- Heads-up coaching banner while the rear-view app owns the screen -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Pleos TextToSpeech SDK (on-device mode) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <!-- AAOS Car API: PERF_VEHICLE_SPEED (same source as the Pleos cluster per official FAQ) -->

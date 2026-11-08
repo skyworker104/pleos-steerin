@@ -8,8 +8,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.steerin.parkingmaster.domain.session.DrivingState
+import com.steerin.parkingmaster.presentation.overlay.CoachNotifier
+import com.steerin.parkingmaster.presentation.overlay.GhostOverlayWindow
 import com.steerin.parkingmaster.presentation.ui.SteerinApp
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinTheme
+import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.presentation.ux.UxRestrictionsMonitor
 import com.steerin.parkingmaster.presentation.voice.VoiceCoach
 import kotlinx.coroutines.launch
@@ -18,6 +22,8 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: ParkingViewModel by viewModels()
     private lateinit var voiceCoach: VoiceCoach
+    private lateinit var notifier: CoachNotifier
+    private lateinit var overlay: GhostOverlayWindow
     private var uxMonitor: UxRestrictionsMonitor? = null
 
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -42,6 +48,28 @@ class MainActivity : ComponentActivity() {
             viewModel.voice.collect { if (viewModel.ui.value.voiceEnabled) voiceCoach.handle(it) }
         }
 
+        // Coaching over the rear-view camera: while another app is in front (Activity not resumed)
+        // mirror the instruction into a heads-up notification and, where allowed, the ghost overlay.
+        notifier = CoachNotifier(this)
+        overlay = GhostOverlayWindow(this)
+        lifecycleScope.launch {
+            viewModel.ui.collect { ui ->
+                val d = ui.tracker.driving
+                val inFront = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+                if (d is DrivingState.Coaching && !inFront) {
+                    val text = getString(
+                        if (d.snapped && d.target.phase != com.steerin.parkingmaster.domain.model.ManeuverPhase.READY) R.string.coach_snapped
+                        else ParkingViewModel.phasePrompt(d.target.phase, ui.tracker.side),
+                    )
+                    notifier.show(text, d.snapped)
+                    overlay.show(ui.tracker.snapshot.steeringDeg, d.target.targetDeg, d.target.toleranceDeg, d.snapped, text)
+                } else {
+                    notifier.dismiss()
+                    overlay.hide()
+                }
+            }
+        }
+
         if (isAutomotive()) {
             uxMonitor = UxRestrictionsMonitor(this) { viewModel.setUxRestricted(it) }.also { it.start() }
             val missing = VEHICLE_PERMISSIONS.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
@@ -52,6 +80,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        overlay.hide()
+        notifier.dismiss()
         uxMonitor?.stop()
         voiceCoach.shutdown()
         super.onDestroy()
@@ -70,6 +100,7 @@ class MainActivity : ComponentActivity() {
             "pleos.car.permission.CAR_INFO",
             "android.car.permission.CAR_SPEED",
             "android.car.permission.CAR_POWERTRAIN",
+            "android.permission.POST_NOTIFICATIONS",
         )
     }
 }
