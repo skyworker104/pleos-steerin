@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -109,10 +110,13 @@ private fun SourceChip(ui: UiState) {
 @Composable
 fun ValueChip(label: String, value: String, tint: Color = SteerinColors.Muted, modifier: Modifier = Modifier) {
     Column(
-        modifier.background(SteerinColors.Surface, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier
+            .widthIn(min = 92.dp)
+            .background(SteerinColors.Surface, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted, maxLines = 1, softWrap = false)
         Spacer(Modifier.height(2.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, color = tint)
+        Text(value, style = MaterialTheme.typography.titleMedium, color = tint, maxLines = 1, softWrap = false)
     }
 }

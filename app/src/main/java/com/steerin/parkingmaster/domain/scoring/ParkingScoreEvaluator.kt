@@ -28,8 +28,9 @@ class ParkingScoreEvaluator(
         /** Reversals up to this number are free (one correction is normal). */
         val freeReversals: Int = 1,
         val reversalPenalty: Int = 4,
-        /** Steering rate while the car is moving above which we start deducting. */
-        val steeringRateSoftLimitDegPerSec: Float = 150f,
+        /** Steering rate while the car is moving above which we start deducting.
+         *  Hand-over-hand unwinding is ~130-180°/s; only yanking beyond this counts. */
+        val steeringRateSoftLimitDegPerSec: Float = 220f,
         val steeringRatePenaltyPer20Deg: Int = 2,
         /** Speed above which a sample is treated as "moving" for rate/door checks. */
         val movingThresholdKmh: Float = 0.5f,

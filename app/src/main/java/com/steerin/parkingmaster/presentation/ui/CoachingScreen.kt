@@ -71,10 +71,10 @@ fun CoachingScreen(state: DrivingState.Coaching, snapshot: VehicleSnapshot, side
                 ValueChip(stringResource(R.string.chip_gear), gearLabel(snapshot.gear))
                 ValueChip(stringResource(R.string.chip_rotation), "${target.headingChangeDeg.roundToInt()}°")
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Warnings(snapshot)
             if (!uxRestricted) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     stringResource(R.string.coach_elapsed, state.elapsedSec.roundToInt()),
                     style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted,

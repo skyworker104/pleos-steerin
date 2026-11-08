@@ -57,16 +57,7 @@ fun ResultScreen(score: ParkingScore, onAcknowledge: () -> Unit) {
         // Right: breakdown + tip
         Column(Modifier.weight(0.62f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 16.dp), verticalArrangement = Arrangement.Center) {
             score.categories.forEach { CategoryBar(it) }
-            Spacer(Modifier.height(14.dp))
-            val tip = score.weakestCategory?.let { tipFor(it) } ?: R.string.tip_perfect
-            Box(Modifier.fillMaxWidth().background(SteerinColors.Surface, RoundedCornerShape(12.dp)).padding(16.dp)) {
-                Column {
-                    Text(stringResource(R.string.result_tip_title), style = MaterialTheme.typography.labelLarge, color = SteerinColors.Cyan)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(tip), style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(6.dp))
             val m = score.metrics
             Text(
                 stringResource(
@@ -75,6 +66,15 @@ fun ResultScreen(score: ParkingScore, onAcknowledge: () -> Unit) {
                 ),
                 style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted,
             )
+            Spacer(Modifier.height(8.dp))
+            val tip = score.weakestCategory?.let { tipFor(it) } ?: R.string.tip_perfect
+            Box(Modifier.fillMaxWidth().background(SteerinColors.Surface, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Column {
+                    Text(stringResource(R.string.result_tip_title), style = MaterialTheme.typography.labelLarge, color = SteerinColors.Cyan)
+                    Spacer(Modifier.height(2.dp))
+                    Text(stringResource(tip), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }
@@ -87,11 +87,11 @@ private fun CategoryBar(c: CategoryScore) {
         frac >= 0.5f -> SteerinColors.Amber
         else -> SteerinColors.Coral
     }
-    Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(categoryName(c.category)), style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(150.dp))
-            Box(Modifier.weight(1f).height(14.dp).background(SteerinColors.SurfaceHigh, RoundedCornerShape(7.dp))) {
-                Box(Modifier.fillMaxWidth(frac.coerceIn(0.02f, 1f)).fillMaxHeight().background(color, RoundedCornerShape(7.dp)))
+            Text(stringResource(categoryName(c.category)), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(140.dp))
+            Box(Modifier.weight(1f).height(12.dp).background(SteerinColors.SurfaceHigh, RoundedCornerShape(6.dp))) {
+                Box(Modifier.fillMaxWidth(frac.coerceIn(0.02f, 1f)).fillMaxHeight().background(color, RoundedCornerShape(6.dp)))
             }
             Spacer(Modifier.width(12.dp))
             Text("${c.points}/${c.category.maxPoints}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.width(64.dp))

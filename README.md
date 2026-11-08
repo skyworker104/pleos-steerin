@@ -31,7 +31,7 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 ### 2.1 Ghost Steering Guide (잔상 링 Snap-In)
 * 화면에 **목표 조향각의 잔상 링(Pleos Cyan)** 과 **현재 핸들(흰색/코랄)** 을 1:1 각도로 그립니다.
 * 두 링이 허용 오차 안에서 포개지면 현재 핸들이 **녹색** 으로 바뀌고 짧은 확인음이 납니다.
-* 목표 조향각은 **운동학 자전거 모델** 로 계산합니다. 조향각과 차속을 적분해 "차가 얼마나 회전했는가"를 추정하고, 직각 후진 주차 표준 절차(풀 록 → 70° 회전 시 풀기 시작 → 88°에서 직진)에 따라 단계별 목표각을 냅니다. 절대 위치가 아니라 **상대 회전량** 을 쓰므로 GPS나 주차 칸 정보가 필요 없습니다.
+* 목표 조향각은 **운동학 자전거 모델** 로 계산합니다. 조향각과 차속을 적분해 "차가 얼마나 회전했는가"를 추정하고, 직각 후진 주차 표준 절차(풀 록 → 65° 회전 시 풀기 시작 → 80° 또는 핸들을 바로 세운 시점에 직진)에 따라 단계별 목표각을 냅니다. 절대 위치가 아니라 **상대 회전량** 을 쓰므로 GPS나 주차 칸 정보가 필요 없습니다.
 
 ### 2.2 100점 주차 과정 평가
 모든 항목이 실제로 수신 가능한 신호 위에 있습니다. 상세 수식은 [`docs/SCORING.md`](docs/SCORING.md).
@@ -55,6 +55,18 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 ### 2.4 어디서나 시연 가능
 * **Pleos Connect AVD / 실차**: Vehicle Service가 감지되면 자동으로 Vehicle SDK 경로를 사용합니다. Virtual Console의 Motion(기어·브레이크·조향각)·Convenience(트렁크) 카드로 신호를 넣을 수 있습니다.
 * **그 외 모든 Android 기기/에뮬레이터**: Vehicle Service가 없으면 내장 시뮬레이터로 전환됩니다. "모범 주차", "초보 주차" 시나리오 재생과 수동 슬라이더를 제공하므로 동일한 데모 스크립트를 재현할 수 있습니다.
+
+---
+
+## 2.5 화면 (시뮬레이션 모드, 일반 에뮬레이터 캡처)
+
+| 대기 | 코칭 (Snap-In) | 결과 |
+| :--: | :--: | :--: |
+| ![standby](docs/screenshots/01_standby.png) | ![coaching](docs/screenshots/02_coaching_snapped.png) | ![result](docs/screenshots/03_result.png) |
+
+| 정렬 단계 (잔상 링이 중앙으로) | 초보 시나리오 (과속 경고) | 초보 결과 (항목별 감점·코칭) |
+| :--: | :--: | :--: |
+| ![straighten](docs/screenshots/04_straighten.png) | ![novice](docs/screenshots/05_novice_warning.png) | ![novice result](docs/screenshots/06_novice_result.png) |
 
 ---
 

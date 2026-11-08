@@ -58,7 +58,10 @@ class SimulatedVehicleSignalSource(
 
     private var scope: CoroutineScope? = null
     private var playJob: Job? = null
-    @Volatile private var clockMs = 0L
+    private var startNanos = System.nanoTime()
+
+    /** Wall-clock based virtual time so steering-rate metrics match a real vehicle's timestamps. */
+    private val clockMs: Long get() = (System.nanoTime() - startNanos) / 1_000_000L
 
     // Current manual state
     private var steering = 0f
@@ -69,12 +72,12 @@ class SimulatedVehicleSignalSource(
 
     override fun start() {
         if (scope != null) return
+        startNanos = System.nanoTime()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { s ->
             s.launch {
                 emitAll() // complete initial snapshot for the tracker
                 while (isActive) {
                     delay(tickMs)
-                    clockMs += tickMs
                     // Speed heartbeat keeps dead-reckoning integrating even when nothing changes,
                     // mirroring PERF_VEHICLE_SPEED at SENSOR_RATE_FAST on a real vehicle.
                     _signals.tryEmit(VehicleSignal.Speed(speed, clockMs))
@@ -181,8 +184,8 @@ class SimulatedVehicleSignalSource(
                 Keyframe(1f, 0f, 0f, GearPosition.REVERSE, brake = true),
                 Keyframe(3f, 460f, 0f, GearPosition.REVERSE, brake = true),   // pre-turn to lock while stopped
                 Keyframe(5f, 460f, 3f, GearPosition.REVERSE),                 // creep back at 3 km/h
-                Keyframe(12f, 460f, 3f, GearPosition.REVERSE),                // hold lock (~75° rotated)
-                Keyframe(16f, 0f, 2.5f, GearPosition.REVERSE),                // unwind to straight (~90°)
+                Keyframe(10.1f, 460f, 3f, GearPosition.REVERSE),              // hold lock (~65° rotated)
+                Keyframe(13.6f, 0f, 2.5f, GearPosition.REVERSE),              // unwind hand-over-hand (~130°/s), ~80° total
                 Keyframe(21f, 0f, 2f, GearPosition.REVERSE),                  // creep straight back
                 Keyframe(23f, 0f, 0f, GearPosition.REVERSE, brake = true),    // gentle stop
                 Keyframe(24f, 0f, 0f, GearPosition.PARK, brake = true),

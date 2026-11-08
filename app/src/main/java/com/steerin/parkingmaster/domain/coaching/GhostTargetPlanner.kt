@@ -13,7 +13,10 @@ import kotlin.math.abs
  * Script (slot on the RIGHT; mirror for LEFT):
  *  1. READY          – car stopped in R: pre-turn the wheel to full lock toward the slot.
  *  2. TURN_IN        – hold full lock until the car has rotated ~[turnInUntilDeg].
- *  3. STRAIGHTEN     – unwind linearly so the wheel is centred when the car reaches 90°.
+ *  3. STRAIGHTEN     – unwind linearly so the wheel is centred by [straightAtDeg]. At creeping
+ *                      speed the car only gains ~15° while the wheel unwinds, so the threshold
+ *                      sits below 90°, and a driver who has centred the wheel after
+ *                      [centredExitAfterDeg] exits the phase at their own pace.
  *  4. HOLD_STRAIGHT  – wheel centred, creep straight back until P.
  *
  * Phases only move forward; a driver who overshoots is told to hold straight rather than being
@@ -21,8 +24,11 @@ import kotlin.math.abs
  */
 class GhostTargetPlanner(
     private val geometry: VehicleGeometry = VehicleGeometry(),
-    private val turnInUntilDeg: Float = 70f,
-    private val straightAtDeg: Float = 88f,
+    private val turnInUntilDeg: Float = 65f,
+    private val straightAtDeg: Float = 80f,
+    /** Once past this rotation, a centred wheel also completes STRAIGHTEN (driver-paced exit). */
+    private val centredExitAfterDeg: Float = 75f,
+    private val centredToleranceDeg: Float = 15f,
     /** Fraction of mechanical lock used as the "full lock" target; leaves margin for the stop. */
     private val lockFraction: Float = 0.85f,
 ) {
@@ -43,15 +49,18 @@ class GhostTargetPlanner(
      * @param headingChangeDeg signed heading change since manoeuvre start (model convention: + = CCW/left).
      * @param moving whether the car is currently moving.
      */
-    fun plan(side: ParkingSide, headingChangeDeg: Float, moving: Boolean): GhostTarget {
+    fun plan(side: ParkingSide, headingChangeDeg: Float, moving: Boolean, liveSteeringDeg: Float = Float.NaN): GhostTarget {
         val rotated = abs(headingChangeDeg)
+        val wheelCentred = !liveSteeringDeg.isNaN() && abs(liveSteeringDeg) <= centredToleranceDeg
         val sign = if (side == ParkingSide.RIGHT) 1f else -1f
         val lock = geometry.maxSteeringWheelDeg * lockFraction
 
         phase = when (phase) {
             ManeuverPhase.READY -> if (moving || rotated > 2f) ManeuverPhase.TURN_IN else ManeuverPhase.READY
             ManeuverPhase.TURN_IN -> if (rotated >= turnInUntilDeg) ManeuverPhase.STRAIGHTEN else ManeuverPhase.TURN_IN
-            ManeuverPhase.STRAIGHTEN -> if (rotated >= straightAtDeg) ManeuverPhase.HOLD_STRAIGHT else ManeuverPhase.STRAIGHTEN
+            ManeuverPhase.STRAIGHTEN ->
+                if (rotated >= straightAtDeg || (rotated >= centredExitAfterDeg && wheelCentred)) ManeuverPhase.HOLD_STRAIGHT
+                else ManeuverPhase.STRAIGHTEN
             ManeuverPhase.HOLD_STRAIGHT -> ManeuverPhase.HOLD_STRAIGHT
             ManeuverPhase.COMPLETE -> ManeuverPhase.COMPLETE
         }

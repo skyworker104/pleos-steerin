@@ -202,7 +202,7 @@ class ParkingSessionTracker(
         val start = sessionStartMs
         if (start != null) {
             val moving = snapshot.speedKmh > 0.5f
-            val target = planner.plan(state.side, model.pose.headingDeg, moving)
+            val target = planner.plan(state.side, model.pose.headingDeg, moving, snapshot.steeringDeg)
             val snapped = GhostTargetPlanner.isSnapped(snapshot.steeringDeg, target)
             return DrivingState.Coaching(target, snapped, (ts - start) / 1000f)
         }
