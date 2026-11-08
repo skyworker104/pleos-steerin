@@ -1,0 +1,8 @@
+# Copy to signing/signing.properties (git-ignored) to produce a signed release APK.
+# Generate a keystore first, e.g.:
+#   keytool -genkeypair -keystore signing/pleos-steerin-release.jks -storetype PKCS12 \
+#           -alias steerin -keyalg RSA -keysize 2048 -validity 3650
+storeFile=signing/pleos-steerin-release.jks
+storePassword=CHANGE_ME
+keyAlias=steerin
+keyPassword=CHANGE_ME

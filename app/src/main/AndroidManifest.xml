@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Runs on phones/tablets too (simulation mode), so automotive hardware is not required. -->
+    <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- Pleos Vehicle SDK read permissions (minimum set actually used) -->
+    <uses-permission android:name="pleos.car.permission.READ_CAR_STEERING" />
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
+    <uses-permission android:name="pleos.car.permission.CAR_SPEED" />
+    <uses-permission android:name="pleos.car.permission.CAR_INFO" />
+    <!-- AAOS Car API: PERF_VEHICLE_SPEED (same source as the Pleos cluster per official FAQ) -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <!-- AAOS Car API: GEAR_SELECTION (Pleos Gear domain is deprecated in SDK 2.3.2 in favour of this) -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+
+    <application
+        android:name=".SteerinApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Steerin"
+        tools:targetApi="34">
+
+        <!-- Optional android.car library (present on Android Automotive OS, absent on phones) -->
+        <uses-library android:name="android.car" android:required="false" />
+
+        <!-- Distraction-optimized: coaching UI is glanceable; touch targets only in P. -->
+        <meta-data android:name="distractionOptimized" android:value="true" />
+
+        <activity
+            android:name=".presentation.MainActivity"
+            android:exported="true"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="distractionOptimized" android:value="true" />
+        </activity>
+    </application>
+</manifest>
