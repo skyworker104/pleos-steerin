@@ -109,7 +109,8 @@ private fun TopStatusBar(ui: UiState, onToggleVoice: () -> Unit, onToggleDemo: (
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
         SourceChip(ui)
         Spacer(Modifier.weight(1f))
-        if (!ui.uxRestricted) {
+        // Spec ch.7: no touch targets while driving-restricted or while a manoeuvre is being coached.
+        if (!ui.uxRestricted && ui.tracker.driving !is DrivingState.Coaching) {
             TextButton(onClick = onToggleVoice) {
                 Text(stringResource(if (ui.voiceEnabled) R.string.voice_on else R.string.voice_off))
             }

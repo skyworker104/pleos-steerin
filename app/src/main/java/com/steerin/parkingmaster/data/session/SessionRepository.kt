@@ -46,7 +46,10 @@ class SessionRepository(
         val now = System.currentTimeMillis()
         val id = ID_FORMAT.format(Date(now)) + "-" + (now % 10_000).toString().padStart(4, '0')
         val record = SessionRecord(id, now, side, log, slot)
-        File(dir, "$id.txt").writeText(SessionCodec.encode(record))
+        // Write to a temp file and rename, so an interrupted write never leaves a truncated session.
+        val tmp = File(dir, "$id.tmp")
+        tmp.writeText(SessionCodec.encode(record))
+        if (!tmp.renameTo(File(dir, "$id.txt"))) { tmp.delete(); error("rename failed for $id") }
         trim()
         refresh()
         record

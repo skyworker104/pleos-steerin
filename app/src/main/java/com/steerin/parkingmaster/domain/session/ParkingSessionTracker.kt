@@ -207,7 +207,8 @@ class ParkingSessionTracker(
             return DrivingState.Coaching(target, snapped, (ts - start) / 1000f)
         }
         pendingResult?.let { result ->
-            // Keep showing the card until acknowledged, but only while parked.
+            // Keep showing the card until acknowledged, but only while parked. UNKNOWN is treated as
+            // parked on purpose: a dropped/unknown gear signal right after P must not wipe the result.
             return if (snapshot.gear == GearPosition.PARK || snapshot.gear == GearPosition.UNKNOWN) result
             else { pendingResult = null; DrivingState.Driving }
         }

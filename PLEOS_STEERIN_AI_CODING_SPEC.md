@@ -40,7 +40,7 @@ Data          VehicleSignalSource ← PleosVehicleSignalSource(+AaosCarSignalSou
 
 ```kotlin
 sealed interface VehicleSignal { val timestampMs: Long
-  data class SteeringAngle(val degrees: Float, …)   // + 우측, − 좌측 (SDK 부호 그대로; AVD에서 확인)
+  data class SteeringAngle(val degrees: Float, …)   // + 우측, − 좌측 (SDK 값에 STEERING_SIGN = −1 을 곱함; Pleos_Connect_v2.1 AVD 실측, 실차 재확인 필요)
   data class GearChanged(val gear: GearPosition, …)  // PARK/REVERSE/NEUTRAL/DRIVE/UNKNOWN
   data class Speed(val kmh: Float, …)                // AAOS PERF_VEHICLE_SPEED(m/s) × 3.6
   data class BrakePedal(val pressed: Boolean, …)
@@ -51,7 +51,7 @@ sealed interface VehicleSignal { val timestampMs: Long
 | 신호 | SDK 호출 | 권한 |
 | :-- | :-- | :-- |
 | 조향각 | `vehicle.getSteeringWheel().checkSteeringWheelAngleCapabilities({cfg,bounds->…},{e->…})` → `getCurrentSteeringWheelAngle` / `registerSteeringWheelAngle(SteeringWheelAngleListener)` | `pleos.car.permission.READ_CAR_STEERING` |
-| 기어 | `vehicle.getGear().getCurrentGearSelectionState` / `registerGearSelection(GearSelectionListener{onSelected(VehicleGear)})` · 실패 시 `CarPropertyManager GEAR_SELECTION` | `pleos.car.permission.CAR_DRIVE` |
+| 기어 | `CarPropertyManager GEAR_SELECTION` 우선 (SDK 2.3.2에서 Pleos Gear 도메인 deprecated) · 권한이 없으면 `vehicle.getGear().getCurrentGearSelectionState` / `registerGearSelection(GearSelectionListener{onSelected(VehicleGear)})` | `pleos.car.permission.CAR_DRIVE` |
 | 브레이크 | `vehicle.getBrake().checkBrakePedalStatusCapabilities` → `registerBrakePedalStatus` | `CAR_DRIVE` |
 | 도어/트렁크 | `vehicle.getDoor().checkDoorPositionCapabilities({cfg, areaMap->…})` → `registerDoorPosition(DoorArea(DoorValue.REAR), …)` (REAR=트렁크) | `CAR_DOORS` |
 | 차속 | `Car.createCar(ctx).getCarManager(Car.PROPERTY_SERVICE)` → `registerCallback(cb, VehiclePropertyIds.PERF_VEHICLE_SPEED, SENSOR_RATE_FAST)` | `android.car.permission.CAR_SPEED` (런타임) |

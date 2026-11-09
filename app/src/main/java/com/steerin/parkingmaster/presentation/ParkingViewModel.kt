@@ -83,6 +83,8 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private var started = false
     private var lastPhase: ManeuverPhase? = null
     private var lastSnapped = false
+    private var doorWarned = false
+    private var speedWarned = false
     private var lastSavedLog: SessionLog? = null
 
     init {
@@ -142,6 +144,9 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     fun openReplay(sessionId: String) {
         viewModelScope.launch {
             val record = repository.load(sessionId) ?: return@launch
+            // Driving restriction or a live manoeuvre may have started while the file was loading.
+            val ui = _ui.value
+            if (ui.uxRestricted || ui.tracker.driving is DrivingState.Coaching || ui.screen != AppScreen.HISTORY) return@launch
             replay.open(record)
             _ui.update { it.copy(screen = AppScreen.REPLAY) }
         }
@@ -202,6 +207,7 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                     _voice.tryEmit(VoiceEvent.SnapTone)
                 }
                 lastSnapped = d.snapped
+                emitWarningsFor(state)
             }
             is DrivingState.Result -> {
                 // Announced once per result from persistIfNewResult, after the slot lookup,
@@ -209,6 +215,22 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
                 lastPhase = null
             }
             DrivingState.Driving -> lastPhase = null
+        }
+        if (state.driving !is DrivingState.Coaching) { doorWarned = false; speedWarned = false }
+    }
+
+    /**
+     * Door / over-speed warnings are spoken, not only drawn: in R the system rear-view camera owns
+     * the screen, so an on-screen warning never reaches the driver. Each warning is spoken once per
+     * rising edge; the speed warning re-arms only after slowing clearly below the limit.
+     */
+    private fun emitWarningsFor(state: TrackerState) {
+        val snap = state.snapshot
+        if (snap.anyDoorOpen && !doorWarned) _voice.tryEmit(VoiceEvent.Say(R.string.warn_door_open))
+        doorWarned = snap.anyDoorOpen
+        when {
+            isOverSpeed(snap.speedKmh) && !speedWarned -> { speedWarned = true; _voice.tryEmit(VoiceEvent.Say(R.string.warn_speed)) }
+            snap.speedKmh < OVER_SPEED_KMH - OVER_SPEED_REARM_KMH -> speedWarned = false
         }
     }
 
@@ -218,6 +240,20 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** Same limit as the scoring soft limit and the on-screen warning. */
+        const val OVER_SPEED_KMH = 5f
+        private const val OVER_SPEED_REARM_KMH = 0.5f
+
+        fun isOverSpeed(kmh: Float) = kmh > OVER_SPEED_KMH
+
+        /** Instruction for the heads-up banner: a safety warning beats the coaching prompt. */
+        fun headsUpText(d: DrivingState.Coaching, state: TrackerState): Int = when {
+            state.snapshot.anyDoorOpen -> R.string.warn_door_open
+            isOverSpeed(state.snapshot.speedKmh) -> R.string.warn_speed
+            d.snapped && d.target.phase != ManeuverPhase.READY -> R.string.coach_snapped
+            else -> phasePrompt(d.target.phase, state.side)
+        }
+
         fun phasePrompt(phase: ManeuverPhase, side: ParkingSide): Int = when (phase) {
             ManeuverPhase.READY -> if (side == ParkingSide.RIGHT) R.string.coach_ready_right else R.string.coach_ready_left
             ManeuverPhase.TURN_IN -> R.string.coach_turn_in

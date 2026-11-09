@@ -77,4 +77,18 @@ class SessionCodecReplayTest {
         assertNull(tolerant.slot)
         assertEquals(res.log.samples.size, tolerant.log.samples.size)
     }
+
+    @Test
+    fun `values changing in the same ms as P survive save and replay`() {
+        val (res, side) = recordedModelSession()
+        val samples = res.log.samples.toMutableList()
+        val last = samples.last()
+        // Door opens and brake releases at the very moment P is engaged.
+        samples[samples.lastIndex] = last.copy(anyDoorOpen = true, brakePressed = !last.brakePressed, steeringDeg = last.steeringDeg + 30f)
+        val log = res.log.copy(samples = samples)
+        val tracker = ParkingSessionTracker().also { it.setSide(side) }
+        val replayed = SessionReplayer.toSignals(log).map { tracker.onSignal(it) }.last().driving as DrivingState.Result
+        assertEquals(samples.last(), replayed.log.samples.last())
+        assertEquals(ParkingScoreEvaluator().evaluate(log).total, replayed.score.total)
+    }
 }

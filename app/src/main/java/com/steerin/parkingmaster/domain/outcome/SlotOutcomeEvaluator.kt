@@ -9,7 +9,7 @@ import kotlin.math.roundToInt
  *
  * | Category  | Max | Full points                         | Zero points                 |
  * |-----------|-----|-------------------------------------|-----------------------------|
- * | IN_SLOT   | 30  | every gap >= 0                      | any line crossed by > 10 cm |
+ * | IN_SLOT   | 30  | every gap >= 0 (15 if within 10 cm) | any line crossed by > 10 cm |
  * | CENTERING | 30  | left/right imbalance <= 10 cm       | imbalance >= 60 cm          |
  * | DEPTH     | 20  | nose inside, rear gap 10..50 cm     | nose out, or 40 cm outside  |
  * | ALIGNMENT | 20  | |yaw| <= 1.5 deg                     | |yaw| >= 8 deg              |
@@ -26,8 +26,8 @@ class SlotOutcomeEvaluator(private val config: Config = Config()) {
         val depthZeroDeviationCm: Float = 40f,
         val alignedYawDeg: Float = 1.5f,
         val zeroYawDeg: Float = 8f,
-        /** Weight of the process score in the combined score when a result score exists. */
-        val processWeight: Float = 0.7f,
+        /** Weight (percent) of the process score in the combined score when a result score exists. */
+        val processWeightPct: Int = 70,
     )
 
     /** Returns null when the observation is missing or not trustworthy enough to show. */
@@ -37,7 +37,7 @@ class SlotOutcomeEvaluator(private val config: Config = Config()) {
         val minGap = minOf(obs.leftGapCm, obs.rightGapCm, obs.frontGapCm, obs.rearGapCm)
         val inSlot = when {
             minGap >= 0f -> OutcomeCategory.IN_SLOT.maxPoints
-            minGap > -c.lineTouchToleranceCm -> OutcomeCategory.IN_SLOT.maxPoints / 2
+            minGap >= -c.lineTouchToleranceCm -> OutcomeCategory.IN_SLOT.maxPoints / 2
             else -> 0
         }
         val imbalance = abs(obs.leftGapCm - obs.rightGapCm)
@@ -60,10 +60,13 @@ class SlotOutcomeEvaluator(private val config: Config = Config()) {
         return OutcomeScore(cats.sumOf { it.points }, cats, obs)
     }
 
-    /** Process-weighted blend; the process score alone is used when there is no result score. */
+    /**
+     * Process-weighted blend; the process score alone is used when there is no result score.
+     * Integer arithmetic so .5 always rounds up (float32 turned 94·0.7 + 19·0.3 = 71.5 into 71.49999 → 71).
+     */
     fun combined(processTotal: Int, outcome: OutcomeScore?): Int =
         if (outcome == null) processTotal
-        else (processTotal * config.processWeight + outcome.total * (1f - config.processWeight)).roundToInt()
+        else (processTotal * config.processWeightPct + outcome.total * (100 - config.processWeightPct) + 50) / 100
 
     /** Full points at or below [full], zero at or above [zero], linear in between. */
     private fun linear(value: Float, full: Float, zero: Float, max: Int): Int = when {

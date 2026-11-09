@@ -105,7 +105,8 @@ class PleosVehicleSignalSource(
     )
     private val doorListeners = HashMap<DoorSlot, DoorPositionListener>()
 
-    private var started = false
+    /** Read from SDK binder callbacks, so @Volatile; late capability answers after [stop] are ignored. */
+    @Volatile private var started = false
 
     override fun start() {
         if (started) return
@@ -116,6 +117,7 @@ class PleosVehicleSignalSource(
         } catch (e: Exception) {
             _status.update { it.copy(connected = false, detail = "initialize failed: ${e.message}") }
             Log.w(TAG, "Vehicle.initialize failed", e)
+            started = false // allow a later start() to retry
             return
         }
         aaos.start() // speed (+ gear when permitted) via AAOS Car API
@@ -131,6 +133,7 @@ class PleosVehicleSignalSource(
         val sw = vehicle.getSteeringWheel()
         sw.checkSteeringWheelAngleCapabilities(
             { config, bounds ->
+                if (!started) return@checkSteeringWheelAngleCapabilities
                 val readable = config?.accessType == AccessType.READ || config?.accessType == AccessType.READ_WRITE
                 Log.i(TAG, "steering capability=$readable bounds=${bounds?.minValue}..${bounds?.maxValue}")
                 if (readable) {
@@ -198,6 +201,7 @@ class PleosVehicleSignalSource(
         val brake = vehicle.getBrake()
         brake.checkBrakePedalStatusCapabilities(
             { config ->
+                if (!started) return@checkBrakePedalStatusCapabilities
                 Log.i(TAG, "brake capability=${config?.accessType}")
                 if (config?.accessType == AccessType.READ || config?.accessType == AccessType.READ_WRITE) {
                     brake.getCurrentBrakePedalStatus({ p -> p?.let { emit(VehicleSignal.BrakePedal(it, now())) } }, { fail("brake.get", it) })
@@ -213,6 +217,7 @@ class PleosVehicleSignalSource(
         val door = vehicle.getDoor()
         door.checkDoorPositionCapabilities(
             { _, areaMap ->
+                if (!started) return@checkDoorPositionCapabilities
                 val supported = areaMap?.keys ?: emptySet()
                 Log.i(TAG, "door areas supported=${supported.size}")
                 doorAreas.forEach { (slot, area) ->
@@ -241,12 +246,17 @@ class PleosVehicleSignalSource(
         @Suppress("DEPRECATION")
         if (pleosGearRegistered) runCatching { vehicle.getGear().unregisterGearSelection(gearListener) }
         runCatching { vehicle.getBrake().unregisterBrakePedalStatus(brakeListener) }
-        val door = vehicle.getDoor()
-        doorListeners.forEach { (slot, l) -> runCatching { door.unregisterDoorPosition(doorAreas.getValue(slot), l) } }
+        runCatching {
+            val door = vehicle.getDoor()
+            doorListeners.forEach { (slot, l) -> runCatching { door.unregisterDoorPosition(doorAreas.getValue(slot), l) } }
+        }
         doorListeners.clear()
         aaos.stop()
         runCatching { vehicle.release() }
-        _status.update { it.copy(connected = false, detail = "released") }
+        _status.update {
+            it.copy(connected = false, detail = "released", steeringAvailable = false, gearAvailable = false,
+                brakeAvailable = false, doorAvailable = false, speedAvailable = false)
+        }
     }
 
     private fun fail(what: String, e: Exception?) {

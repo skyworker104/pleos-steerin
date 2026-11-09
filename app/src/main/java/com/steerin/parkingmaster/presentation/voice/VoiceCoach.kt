@@ -66,9 +66,13 @@ class AndroidTtsEngine(private val context: Context) : VoiceEngine {
  */
 class VoiceCoach(private val context: Context) {
 
-    private val engines: List<VoiceEngine> = buildList {
-        if (PleosTtsEngine.isAvailable(context)) add(PleosTtsEngine(context))
-        add(AndroidTtsEngine(context))
+    private val engines: List<VoiceEngine> = run {
+        val android = AndroidTtsEngine(context)
+        buildList {
+            // A prompt queued on Pleos TTS is handed to Android TTS if Pleos fails to initialise.
+            if (PleosTtsEngine.isAvailable(context)) add(PleosTtsEngine(context) { queued -> queued?.let(android::speak) })
+            add(android)
+        }
     }.onEach { it.start() }
 
     private val tone: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()

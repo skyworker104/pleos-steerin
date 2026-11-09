@@ -117,7 +117,7 @@ private fun PhaseStepper(current: ManeuverPhase) {
 private fun Warnings(snapshot: VehicleSnapshot) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (snapshot.anyDoorOpen) WarningLine(stringResource(R.string.warn_door_open), SteerinColors.Coral)
-        if (snapshot.speedKmh > 5f) WarningLine(stringResource(R.string.warn_speed), SteerinColors.Amber)
+        if (ParkingViewModel.isOverSpeed(snapshot.speedKmh)) WarningLine(stringResource(R.string.warn_speed), SteerinColors.Amber)
     }
 }
 
