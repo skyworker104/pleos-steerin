@@ -91,4 +91,15 @@ class SessionCodecReplayTest {
         assertEquals(samples.last(), replayed.log.samples.last())
         assertEquals(ParkingScoreEvaluator().evaluate(log).total, replayed.score.total)
     }
+
+    @Test
+    fun `a corrupt sample row is skipped instead of dropping the session`() {
+        val (res, side) = recordedModelSession()
+        val text = SessionCodec.encode(SessionRecord("x", 1L, side, res.log))
+        val lines = text.lines().toMutableList()
+        val firstRow = lines.indexOf("ts,steer,speed,gear,brake,door") + 2
+        lines[firstRow] = "garbage,1.0,,R,0,0"
+        val back = SessionCodec.decode(lines.joinToString("\n"))
+        assertEquals(res.log.samples.size - 1, back.log.samples.size)
+    }
 }

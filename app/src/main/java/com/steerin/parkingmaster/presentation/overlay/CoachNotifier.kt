@@ -28,6 +28,7 @@ class CoachNotifier(private val context: Context) {
             enableVibration(false)
         }
         nm.createNotificationChannel(channel)
+        nm.cancel(NOTIF_ID) // a banner left over from a previous process (it is ongoing) must not linger
     }
 
     val canPost: Boolean
@@ -35,15 +36,22 @@ class CoachNotifier(private val context: Context) {
             context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
     private var lastInstruction: String? = null
+    private var lastSnapped: Boolean? = null
 
     /**
      * Shows or updates the single coaching banner. A heads-up banner is only re-alerted when the
      * instruction text changes (phase change / snap-in), so snapped toggles do not spam the driver.
+     *
+     * Called on every UI update (speed arrives at ~10 Hz). Re-posting an unchanged notification is
+     * skipped: Android drops updates above ~5/s per app ("Shedding events"), and a dropped update
+     * would leave a stale title/colour or swallow the re-post that follows a cancel.
      */
     fun show(instruction: String, snapped: Boolean) {
         if (!canPost) return
+        if (instruction == lastInstruction && snapped == lastSnapped) return
         val changed = instruction != lastInstruction
         lastInstruction = instruction
+        lastSnapped = snapped
         if (changed) nm.cancel(NOTIF_ID) // force a fresh heads-up for the new instruction
         val open = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
@@ -65,7 +73,9 @@ class CoachNotifier(private val context: Context) {
     }
 
     fun dismiss() {
+        if (lastInstruction == null) return // nothing posted; avoid a cancel IPC on every UI update
         lastInstruction = null
+        lastSnapped = null
         nm.cancel(NOTIF_ID)
     }
 

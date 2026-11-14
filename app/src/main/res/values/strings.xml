@@ -138,4 +138,37 @@
     <string name="voice_outcome">주차가 완료되었습니다. 종합 점수는 %2$d점, 주차 위치 점수는 %1$d점입니다.</string>
     <string name="svm_demo_label">SVM 위치 점수 시연</string>
     <string name="svm_demo_hint">가상 데이터 · SVM API 제공 전 시연용</string>
+
+    <!-- Rewards: wheel skins + mascot 휠리 -->
+    <string name="skins_button">핸들 스킨</string>
+    <string name="skins_title">핸들 스킨</string>
+    <string name="skins_subtitle">주차 목표를 달성하면 새 핸들을 얻어요. 코칭 색(파랑 목표·초록 정렬·빨강 경고)은 모든 스킨에서 같아요.</string>
+    <string name="skins_back">닫기</string>
+    <string name="skin_in_use">사용 중</string>
+    <string name="skin_select">사용하기</string>
+    <string name="skin_locked">잠김</string>
+    <string name="skin_progress">%1$d / %2$d</string>
+    <string name="skin_classic">클래식</string>
+    <string name="skin_master_ring">마스터 링</string>
+    <string name="skin_carbon_grip">카본 그립</string>
+    <string name="skin_neon_streak">네온 스트릭</string>
+    <string name="skin_gold_king">주차왕 골드</string>
+    <string name="skin_req_classic">기본 핸들</string>
+    <string name="skin_req_master_ring">70점 이상 1회</string>
+    <string name="skin_req_carbon_grip">주차 10회</string>
+    <string name="skin_req_neon_streak">70점 이상 5회 연속</string>
+    <string name="skin_req_gold_king">90점 이상 3회</string>
+    <string name="skin_unlocked_banner">새 핸들 스킨 획득: %1$s</string>
+    <string name="skin_unlocked_hint">대기 화면의 \"핸들 스킨\"에서 바꿀 수 있어요.</string>
+    <string name="mascot_name">휠리</string>
+    <string name="mascot_hello_first">안녕하세요, 휠리예요! 첫 주차 같이 해요.</string>
+    <string name="mascot_hello">다시 만나 반가워요! 오늘도 천천히 해요.</string>
+    <string name="mascot_day_streak">%1$d일 연속 연습 중! 오늘도 이어가요.</string>
+    <string name="mascot_next_goal">「%1$s」까지 %2$s (%3$d/%4$d)</string>
+    <string name="mascot_all_skins">핸들을 모두 모았어요! 최고 %1$d점에 도전!</string>
+    <string name="mascot_result_proud">완벽해요! 명예 주차왕다운 주차였어요.</string>
+    <string name="mascot_result_cheer">좋아요! 지금처럼만 하면 돼요.</string>
+    <string name="mascot_result_encourage">괜찮아요, 아래 한 가지만 고치면 금방 늘어요.</string>
+    <string name="mascot_result_comfort">천천히 해도 괜찮아요. 아래 팁부터 같이 연습해 봐요.</string>
+    <string name="mascot_good_streak">70점 이상 %1$d회 연속!</string>
 </resources>

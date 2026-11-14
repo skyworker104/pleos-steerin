@@ -38,6 +38,10 @@ import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.data.vehicle.GearPosition
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
 import com.steerin.parkingmaster.domain.model.ParkingSide
+import com.steerin.parkingmaster.domain.reward.MascotMood
+import com.steerin.parkingmaster.domain.reward.NextGoal
+import com.steerin.parkingmaster.domain.reward.RewardProgress
+import com.steerin.parkingmaster.domain.reward.WheelSkin
 import com.steerin.parkingmaster.presentation.ParkingViewModel
 import com.steerin.parkingmaster.presentation.UiState
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
@@ -45,14 +49,26 @@ import kotlin.math.roundToInt
 
 /** DRIVING state: minimal, informational. The only control is the parking-side preference. */
 @Composable
-fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistory: () -> Unit = {}, onToggleSvmDemo: () -> Unit = {}) {
+fun StandbyScreen(
+    ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistory: () -> Unit = {}, onToggleSvmDemo: () -> Unit = {},
+    onOpenSkins: () -> Unit = {}, nextGoal: NextGoal? = null,
+) {
     val snapshot = ui.tracker.snapshot
     Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(0.42f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+        Column(Modifier.weight(0.42f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             GhostRing(
                 liveDeg = snapshot.steeringDeg, targetDeg = snapshot.steeringDeg, snapped = false,
-                toleranceDeg = 5f, showGhost = false, modifier = Modifier.fillMaxHeight(0.8f),
+                toleranceDeg = 5f, showGhost = false, modifier = Modifier.weight(1f, fill = false).fillMaxHeight(0.6f),
+                skin = ui.selectedSkin,
             )
+            if (!ui.uxRestricted) {
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(onClick = onOpenSkins, colors = ButtonDefaults.outlinedButtonColors(contentColor = SteerinColors.Gold)) {
+                    Text(stringResource(R.string.skins_button) + "  ${ui.reward.unlocked.size}/${WheelSkin.entries.size}", style = MaterialTheme.typography.titleMedium)
+                }
+                Spacer(Modifier.height(8.dp))
+                if (ui.historyLoaded) MascotBubble(MascotMood.HELLO, standbyLines(ui.reward, nextGoal), mascotSize = 48.dp)
+            }
         }
         Column(Modifier.weight(0.58f).padding(start = 24.dp), verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.standby_title), style = MaterialTheme.typography.headlineLarge)
@@ -90,6 +106,24 @@ fun StandbyScreen(ui: UiState, onSideChange: (ParkingSide) -> Unit, onOpenHistor
             SourceDetail(ui)
         }
     }
+}
+
+/** Greeting/streak line plus the next unlock goal, in 휠리's voice. */
+@Composable
+private fun standbyLines(p: RewardProgress, goal: NextGoal?): List<String> {
+    val first = when {
+        p.totalSessions == 0 -> stringResource(R.string.mascot_hello_first)
+        p.dayStreak >= 2 -> stringResource(R.string.mascot_day_streak, p.dayStreak)
+        else -> stringResource(R.string.mascot_hello)
+    }
+    val second = if (goal != null) {
+        stringResource(R.string.mascot_next_goal, stringResource(skinName(goal.skin)), stringResource(skinRequirement(goal.skin)), goal.current, goal.target)
+    } else if (p.bestScore > 0) {
+        stringResource(R.string.mascot_all_skins, p.bestScore)
+    } else {
+        null
+    }
+    return listOfNotNull(first, second)
 }
 
 @Composable

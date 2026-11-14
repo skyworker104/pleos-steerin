@@ -19,6 +19,10 @@ import com.steerin.parkingmaster.domain.model.SessionLog
 import com.steerin.parkingmaster.domain.model.SessionSummary
 import com.steerin.parkingmaster.domain.outcome.OutcomeScore
 import com.steerin.parkingmaster.domain.outcome.SlotOutcomeEvaluator
+import com.steerin.parkingmaster.domain.reward.RewardEngine
+import com.steerin.parkingmaster.domain.reward.RewardProgress
+import com.steerin.parkingmaster.domain.reward.SessionResult
+import com.steerin.parkingmaster.domain.reward.WheelSkin
 import com.steerin.parkingmaster.domain.session.DrivingState
 import com.steerin.parkingmaster.domain.session.ParkingSessionTracker
 import com.steerin.parkingmaster.domain.session.TrackerState
@@ -34,12 +38,13 @@ import kotlinx.coroutines.launch
 
 /** A spoken prompt (string resource + args) or a short snap-in tone. */
 sealed interface VoiceEvent {
-    data class Say(val resId: Int, val args: List<Any> = emptyList()) : VoiceEvent
+    /** [urgent] = safety warning: never cut off by a later prompt (see SpeechScheduler). */
+    data class Say(val resId: Int, val args: List<Any> = emptyList(), val urgent: Boolean = false) : VoiceEvent
     data object SnapTone : VoiceEvent
 }
 
 /** Top-level navigation. Live coaching always wins: a session starting in R pulls the UI back to MAIN. */
-enum class AppScreen { MAIN, HISTORY, REPLAY }
+enum class AppScreen { MAIN, HISTORY, REPLAY, SKINS }
 
 data class UiState(
     val tracker: TrackerState = TrackerState(),
@@ -56,6 +61,13 @@ data class UiState(
     val svmDemoEnabled: Boolean = false,
     /** Result score for the result currently on screen, tagged with its log so a stale one is never shown. */
     val outcome: ResultOutcome? = null,
+    /** Skins / streaks derived from the history plus persisted unlocks. */
+    val reward: RewardProgress = RewardProgress(),
+    val selectedSkin: WheelSkin = WheelSkin.CLASSIC,
+    /** Skins unlocked by the result currently on screen (shown on the result card, cleared on acknowledge). */
+    val newlyUnlocked: List<WheelSkin> = emptyList(),
+    /** False until the session store has been read once; rewards and 휠리's lines wait for it. */
+    val historyLoaded: Boolean = false,
 )
 
 data class ResultOutcome(val log: SessionLog, val score: OutcomeScore)
@@ -66,6 +78,10 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
     private val source = container.signalSource
     private val simulator: SimulatedVehicleSignalSource? = container.simulator
     private val repository: SessionRepository = container.sessionRepository
+    private val rewardStore = container.rewardStore
+    private val rewardEngine = RewardEngine()
+    /** Set just before saving a result, so only unlocks caused by that result are announced. */
+    private var announceUnlocks = false
     private val tracker = ParkingSessionTracker()
     private val outcomeEvaluator = SlotOutcomeEvaluator()
     private val simulatedOutcome = SimulatedOutcomeSource()
@@ -74,7 +90,12 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
 
     val replay = ReplayController(viewModelScope)
 
-    private val _ui = MutableStateFlow(UiState(simulationAvailable = simulator != null, showDemoPanel = simulator != null))
+    private val _ui = MutableStateFlow(
+        UiState(
+            simulationAvailable = simulator != null, showDemoPanel = simulator != null,
+            selectedSkin = rewardStore.selected(), reward = RewardProgress(unlocked = rewardStore.unlocked()),
+        ),
+    )
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     private val _voice = MutableSharedFlow<VoiceEvent>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -89,8 +110,17 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch { source.status.collect { s -> _ui.update { it.copy(source = s) } } }
-        viewModelScope.launch { repository.summaries.collect { list -> _ui.update { it.copy(history = list) } } }
-        viewModelScope.launch { repository.refresh() }
+        viewModelScope.launch {
+            repository.summaries.collect { list ->
+                _ui.update { it.copy(history = list) }
+                if (_ui.value.historyLoaded) updateRewards(list)
+            }
+        }
+        viewModelScope.launch {
+            repository.refresh()
+            _ui.update { it.copy(historyLoaded = true) }
+            updateRewards(repository.summaries.value)
+        }
         simulator?.let { sim -> viewModelScope.launch { sim.playingScenarioId.collect { id -> _ui.update { it.copy(playingScenario = id) } } } }
         viewModelScope.launch {
             source.signals.collect { signal ->
@@ -118,7 +148,34 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun acknowledgeResult() {
         tracker.acknowledgeResult()
-        _ui.update { it.copy(tracker = tracker.state) }
+        _ui.update { it.copy(tracker = tracker.state, newlyUnlocked = emptyList()) }
+    }
+
+    // --- rewards (wheel skins, mascot) -------------------------------------------------------
+    private fun updateRewards(history: List<com.steerin.parkingmaster.domain.model.SessionSummary>) {
+        val before = rewardStore.unlocked()
+        val progress = rewardEngine.progress(history.map { SessionResult(it.savedAtEpochMs, it.combinedTotal) }, System.currentTimeMillis(), before)
+        val gained = (progress.unlocked - before).sortedBy { it.ordinal }
+        if (gained.isNotEmpty()) {
+            rewardStore.saveUnlocked(progress.unlocked)
+            Log.i("ParkingCoach", "unlocked skins=$gained announce=$announceUnlocks")
+        }
+        val show = if (announceUnlocks && gained.isNotEmpty()) gained else null
+        if (announceUnlocks && history.isNotEmpty()) announceUnlocks = false
+        _ui.update { it.copy(reward = progress, newlyUnlocked = show ?: it.newlyUnlocked) }
+    }
+
+    fun nextGoal() = rewardEngine.nextGoal(_ui.value.reward)
+
+    fun showSkins() {
+        if (_ui.value.uxRestricted || _ui.value.tracker.driving is DrivingState.Coaching) return
+        _ui.update { it.copy(screen = AppScreen.SKINS) }
+    }
+
+    fun selectSkin(skin: WheelSkin) {
+        if (skin !in _ui.value.reward.unlocked) return
+        rewardStore.saveSelected(skin)
+        _ui.update { it.copy(selectedSkin = skin) }
     }
 
     fun toggleSvmDemo() = _ui.update { it.copy(svmDemoEnabled = !it.svmDemoEnabled) }
@@ -174,9 +231,10 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 _voice.tryEmit(VoiceEvent.Say(R.string.voice_result, listOf(score.total)))
             }
+            announceUnlocks = true
             runCatching { repository.save(result.log, state.side, slot) }
                 .onSuccess { rec -> _ui.update { it.copy(lastSavedSessionId = rec.id) } }
-                .onFailure { Log.w("ParkingCoach", "session save failed: ${it.message}") }
+                .onFailure { announceUnlocks = false; Log.w("ParkingCoach", "session save failed: ${it.message}") }
         }
     }
 
@@ -226,10 +284,10 @@ class ParkingViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun emitWarningsFor(state: TrackerState) {
         val snap = state.snapshot
-        if (snap.anyDoorOpen && !doorWarned) _voice.tryEmit(VoiceEvent.Say(R.string.warn_door_open))
+        if (snap.anyDoorOpen && !doorWarned) _voice.tryEmit(VoiceEvent.Say(R.string.warn_door_open, urgent = true))
         doorWarned = snap.anyDoorOpen
         when {
-            isOverSpeed(snap.speedKmh) && !speedWarned -> { speedWarned = true; _voice.tryEmit(VoiceEvent.Say(R.string.warn_speed)) }
+            isOverSpeed(snap.speedKmh) && !speedWarned -> { speedWarned = true; _voice.tryEmit(VoiceEvent.Say(R.string.warn_speed, urgent = true)) }
             snap.speedKmh < OVER_SPEED_KMH - OVER_SPEED_REARM_KMH -> speedWarned = false
         }
     }

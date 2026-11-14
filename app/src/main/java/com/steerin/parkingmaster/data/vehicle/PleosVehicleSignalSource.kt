@@ -111,23 +111,44 @@ class PleosVehicleSignalSource(
     override fun start() {
         if (started) return
         started = true
+        // AAOS speed (+ gear when permitted) does not depend on the Pleos Vehicle Service, so it
+        // starts first and keeps working even while the Pleos connection is being retried.
+        aaos.start()
+        Log.i(TAG, "AAOS speed=${aaos.speedAvailable} gear=${aaos.gearAvailable}")
+        _status.update { it.copy(speedAvailable = aaos.speedAvailable) }
+        initAttempt = 0
+        connectVehicle()
+    }
+
+    /**
+     * Connects to the Pleos Vehicle Service and registers the listeners. A failure (service not yet
+     * bound at boot, transient IPC error) is retried here with back-off for as long as the source is
+     * started: the ViewModel calls [start] exactly once, so a retry left to the caller never happens.
+     */
+    private fun connectVehicle() {
+        if (!started) return
         try {
             vehicle.initialize()
             _status.update { it.copy(connected = true, detail = "Vehicle Service connected") }
         } catch (e: Exception) {
-            _status.update { it.copy(connected = false, detail = "initialize failed: ${e.message}") }
-            Log.w(TAG, "Vehicle.initialize failed", e)
-            started = false // allow a later start() to retry
+            val delayMs = retryDelayMs(initAttempt++)
+            _status.update { it.copy(connected = false, detail = "initialize failed: ${e.message} (retry in ${delayMs / 1000}s)") }
+            Log.w(TAG, "Vehicle.initialize failed (attempt $initAttempt), retrying in ${delayMs}ms", e)
+            retryJob?.cancel()
+            retryJob = scope.launch(Dispatchers.Main) {
+                delay(delayMs)
+                connectVehicle()
+            }
             return
         }
-        aaos.start() // speed (+ gear when permitted) via AAOS Car API
-        Log.i(TAG, "AAOS speed=${aaos.speedAvailable} gear=${aaos.gearAvailable}")
-        _status.update { it.copy(speedAvailable = aaos.speedAvailable) }
         registerSteering()
         registerGear()
         registerBrake()
         registerDoors()
     }
+
+    private var initAttempt = 0
+    private var retryJob: Job? = null
 
     private fun registerSteering() {
         val sw = vehicle.getSteeringWheel()
@@ -241,6 +262,7 @@ class PleosVehicleSignalSource(
     override fun stop() {
         if (!started) return
         started = false
+        retryJob?.cancel(); retryJob = null
         pollJob?.cancel(); pollJob = null
         runCatching { vehicle.getSteeringWheel().unregisterSteeringWheelAngle(steeringListener) }
         @Suppress("DEPRECATION")
@@ -283,6 +305,9 @@ class PleosVehicleSignalSource(
          */
         private const val STEERING_SIGN = -1f
         private const val STEERING_POLL_MS = 200L
+
+        /** 1 s, 2 s, 4 s … capped at 30 s. */
+        internal fun retryDelayMs(attempt: Int): Long = (1000L shl attempt.coerceIn(0, 5)).coerceAtMost(30_000L)
 
         /** True when a Pleos Vehicle Service is installed (i.e. we are on a Pleos Connect AVD or vehicle). */
         fun isAvailable(context: Context): Boolean {

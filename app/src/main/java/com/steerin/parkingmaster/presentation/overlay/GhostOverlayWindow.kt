@@ -13,10 +13,9 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import com.steerin.parkingmaster.presentation.ui.WheelEmblem
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 
 /**
  * EXPERIMENTAL. A small Ghost Ring drawn in a TYPE_APPLICATION_OVERLAY window so it can sit on top
@@ -41,19 +40,28 @@ class GhostOverlayWindow(private val context: Context) {
     fun show(liveDeg: Float, targetDeg: Float, toleranceDeg: Float, snapped: Boolean, instruction: String, visibleMs: Long = 4000) {
         if (!isAllowed) return
         val v = view ?: GhostRingView(context).also { created ->
-            val size = (min(context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels) * 0.34f).toInt()
+            // Pleos Connect rear-camera layout (2560x1440, AVD-measured): under the main video, the two
+            // small side views leave an empty white strip in the middle (x 1491-2020, y 963-1300). The
+            // card sits centred in that strip so it never covers the main rear video or the side views.
+            // Overlay windows are placed in full-screen coordinates; resources.displayMetrics is only the
+            // app pane on Pleos (1682x1210), so use the real display size.
+            val dm = android.util.DisplayMetrics().also { @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(it) }
+            val sw = dm.widthPixels.toFloat(); val sh = dm.heightPixels.toFloat()
+            val w = (sw * SLOT_W).toInt(); val h = (sh * SLOT_H).toInt()
             val lp = WindowManager.LayoutParams(
-                size, (size * 1.18f).toInt(),
+                w, h,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT,
             ).apply {
-                gravity = Gravity.TOP or Gravity.END
-                x = (size * 0.12f).toInt()
-                y = (size * 0.25f).toInt()
+                gravity = Gravity.TOP or Gravity.START
+                x = (sw * SLOT_CX - w / 2f).toInt()
+                y = (sh * SLOT_CY - h / 2f).toInt()
             }
+            Log.i(TAG, "display=${dm.widthPixels}x${dm.heightPixels} card=${lp.width}x${lp.height}@${lp.x},${lp.y}")
             runCatching { wm.addView(created, lp) }.onFailure { Log.w(TAG, "overlay rejected: ${it.message}"); return }
             view = created
         }
@@ -71,7 +79,7 @@ class GhostOverlayWindow(private val context: Context) {
     /** Plain-View twin of the Compose GhostRing so it can live in a WindowManager window. */
     private class GhostRingView(context: Context) : View(context) {
         private var live = 0f; private var target = 0f; private var tol = 5f; private var snapped = false; private var text = ""
-        private val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xD9121418.toInt() }
+        private val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF2121418.toInt() }
         private val ghost = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x8C00AAD2.toInt(); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
         private val wheel = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
         private val hint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFC107.toInt(); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
@@ -84,11 +92,12 @@ class GhostOverlayWindow(private val context: Context) {
         }
 
         override fun onDraw(c: Canvas) {
+            // Landscape card: wheel on the left, one-line instruction (wrapped) on the right.
             val w = width.toFloat(); val h = height.toFloat()
             rect.set(0f, 0f, w, h)
-            c.drawRoundRect(rect, w * 0.08f, w * 0.08f, bg)
-            val r = w * 0.36f
-            val cx = w / 2f; val cy = r + w * 0.08f
+            c.drawRoundRect(rect, h * 0.12f, h * 0.12f, bg)
+            val r = min(h * 0.36f, w * 0.19f)
+            val cx = h * 0.08f + r * 1.05f; val cy = h / 2f
             ghost.strokeWidth = r * 0.07f
             drawWheel(c, cx, cy, r * 0.92f, target, ghost)
             wheel.color = when { snapped -> 0xFF00E676.toInt(); abs(live - target) <= tol * 2.5f -> 0xFFF2F4F7.toInt(); else -> 0xFFFF5252.toInt() }
@@ -99,19 +108,29 @@ class GhostOverlayWindow(private val context: Context) {
                 rect.set(cx - r, cy - r, cx + r, cy + r)
                 c.drawArc(rect, -90f + live, (target - live).coerceIn(-60f, 60f), false, hint)
             }
-            label.textSize = w * 0.075f
-            val lines = wrap(text, 14)
-            lines.forEachIndexed { i, s -> c.drawText(s, cx, cy + r + w * 0.13f + i * label.textSize * 1.25f, label) }
+            val left = cx + r * 1.15f
+            val textW = w - left - h * 0.08f
+            label.textAlign = Paint.Align.LEFT
+            label.color = if (snapped) 0xFF00E676.toInt() else Color.WHITE
+            label.textSize = h * 0.095f
+            val perLine = (textW / label.textSize).toInt().coerceAtLeast(6)
+            val lines = wrap(text, perLine)
+            val lineH = label.textSize * 1.3f
+            val top = cy - (lines.size - 1) * lineH / 2f + label.textSize * 0.35f
+            lines.forEachIndexed { i, s -> c.drawText(s, left, top + i * lineH, label) }
         }
 
+        /** Same emblem wheel as the Compose GhostRing (see WheelEmblem). */
         private fun drawWheel(c: Canvas, cx: Float, cy: Float, radius: Float, deg: Float, p: Paint) {
             c.save(); c.rotate(deg, cx, cy)
             c.drawCircle(cx, cy, radius, p)
-            c.drawCircle(cx, cy, radius * 0.16f, p)
-            for (a in listOf(90f, 210f, 330f)) {
-                val rad = Math.toRadians(a.toDouble())
-                c.drawLine(cx + cos(rad).toFloat() * radius * 0.18f, cy + sin(rad).toFloat() * radius * 0.18f, cx + cos(rad).toFloat() * radius * 0.96f, cy + sin(rad).toFloat() * radius * 0.96f, p)
-            }
+            val rx = radius * WheelEmblem.OVAL_RX
+            val ry = radius * WheelEmblem.OVAL_RY
+            c.drawLine(cx - radius * WheelEmblem.SPOKE_OUTER, cy, cx - rx, cy, p)
+            c.drawLine(cx + rx, cy, cx + radius * WheelEmblem.SPOKE_OUTER, cy, p)
+            c.drawOval(RectF(cx - rx, cy - ry, cx + rx, cy + ry), p)
+            val l = WheelEmblem.LINES
+            for (i in l.indices step 4) c.drawLine(cx + l[i] * radius, cy + l[i + 1] * radius, cx + l[i + 2] * radius, cy + l[i + 3] * radius, p)
             val dot = p.style; p.style = Paint.Style.FILL
             c.drawCircle(cx, cy - radius, p.strokeWidth * 1.3f, p)
             p.style = dot
@@ -127,9 +146,16 @@ class GhostOverlayWindow(private val context: Context) {
                 line.append(word)
             }
             if (line.isNotEmpty()) out += line.toString()
-            return out.take(3)
+            return out.take(5)
         }
     }
 
-    companion object { private const val TAG = "GhostOverlay" }
+    companion object {
+        private const val TAG = "GhostOverlay"
+        // Empty strip between the two bottom side views of the system rear camera, as display fractions.
+        private const val SLOT_CX = 0.6857f  // (1491 + 2020) / 2 / 2560
+        private const val SLOT_CY = 0.7858f  // (963 + 1300) / 2 / 1440
+        private const val SLOT_W = 0.195f    // ~500 px of the 529 px strip
+        private const val SLOT_H = 0.215f    // ~310 px of the 337 px strip
+    }
 }

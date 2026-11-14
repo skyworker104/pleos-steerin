@@ -71,12 +71,13 @@ private fun SteerinContent(ui: UiState, viewModel: ParkingViewModel) {
                             sessions = ui.history, onBack = viewModel::showMain,
                             onReplay = viewModel::openReplay, onDelete = viewModel::deleteSession,
                         )
-                        AppScreen.REPLAY -> ReplayScreen(viewModel.replay, onClose = viewModel::showHistory)
+                        AppScreen.REPLAY -> ReplayScreen(viewModel.replay, onClose = viewModel::showHistory, skin = ui.selectedSkin)
+                        AppScreen.SKINS -> SkinsScreen(ui.reward, ui.selectedSkin, onSelect = viewModel::selectSkin, onBack = viewModel::showMain)
                         AppScreen.MAIN -> Crossfade(targetState = ui.tracker.driving::class, label = "screen") { kind ->
                             when (kind) {
                                 DrivingState.Coaching::class -> {
                                     val coaching = ui.tracker.driving as? DrivingState.Coaching
-                                    if (coaching != null) CoachingScreen(coaching, ui.tracker.snapshot, ui.tracker.side, ui.uxRestricted)
+                                    if (coaching != null) CoachingScreen(coaching, ui.tracker.snapshot, ui.tracker.side, ui.uxRestricted, ui.selectedSkin)
                                 }
                                 DrivingState.Result::class -> {
                                     val result = ui.tracker.driving as? DrivingState.Result
@@ -84,9 +85,11 @@ private fun SteerinContent(ui: UiState, viewModel: ParkingViewModel) {
                                         result.score,
                                         outcome = ui.outcome?.takeIf { it.log === result.log }?.score,
                                         onAcknowledge = viewModel::acknowledgeResult,
+                                        newlyUnlocked = ui.newlyUnlocked,
+                                        goodStreak = ui.reward.goodStreak,
                                     )
                                 }
-                                else -> StandbyScreen(ui, onSideChange = viewModel::setSide, onOpenHistory = viewModel::showHistory, onToggleSvmDemo = viewModel::toggleSvmDemo)
+                                else -> StandbyScreen(ui, onSideChange = viewModel::setSide, onOpenHistory = viewModel::showHistory, onToggleSvmDemo = viewModel::toggleSvmDemo, onOpenSkins = viewModel::showSkins, nextGoal = viewModel.nextGoal())
                             }
                         }
                     }

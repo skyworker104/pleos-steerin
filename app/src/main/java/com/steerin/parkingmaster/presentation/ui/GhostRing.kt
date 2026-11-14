@@ -17,11 +17,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.tooling.preview.Preview
+import com.steerin.parkingmaster.domain.reward.WheelSkin
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
-import kotlin.math.abs
+import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.abs
+import kotlin.math.min
 
 /**
  * The Snap-In visual: a translucent cyan "ghost" wheel at the target angle and the live wheel
@@ -38,6 +40,9 @@ fun GhostRing(
     toleranceDeg: Float,
     modifier: Modifier = Modifier,
     showGhost: Boolean = true,
+    skin: WheelSkin = WheelSkin.CLASSIC,
+    /** Accent colours for the skin. Off during live coaching, where colour carries meaning. */
+    decorate: Boolean = !showGhost,
 ) {
     val live by animateFloatAsState(liveDeg, spring(stiffness = 600f), label = "live")
     val target by animateFloatAsState(targetDeg, tween(250), label = "target")
@@ -73,7 +78,7 @@ fun GhostRing(
             rotate(target, c) { drawWheel(c, r * 0.86f, SteerinColors.Cyan.copy(alpha = 0.55f), r * 0.045f, ghost = true) }
         }
         // Live wheel
-        rotate(live, c) { drawWheel(c, r * 0.78f, liveColor, r * 0.06f, ghost = false) }
+        rotate(live, c) { drawSkinnedWheel(skin, c, r * 0.78f, liveColor, r * 0.06f, decorate) }
         // Direction hint: short arc from live toward target along the rim
         if (showGhost && !snapped) {
             val delta = (target - live).coerceIn(-60f, 60f)
@@ -91,20 +96,86 @@ fun GhostRing(
 }
 
 private fun DrawScope.drawWheel(c: Offset, radius: Float, color: Color, stroke: Float, ghost: Boolean) {
+    val w = if (ghost) stroke * 0.8f else stroke
     // Rim
     drawCircle(color, radius, c, style = Stroke(stroke))
-    // Hub
-    drawCircle(color, radius * 0.16f, c, style = if (ghost) Stroke(stroke * 0.8f) else Stroke(stroke))
-    // Three spokes: 180° (bottom), 60°, 300° in screen coordinates (top marker separate)
-    for (deg in listOf(90f, 210f, 330f)) {
-        val rad = Math.toRadians(deg.toDouble())
-        val from = Offset(c.x + cos(rad).toFloat() * radius * 0.18f, c.y + sin(rad).toFloat() * radius * 0.18f)
-        val to = Offset(c.x + cos(rad).toFloat() * radius * 0.96f, c.y + sin(rad).toFloat() * radius * 0.96f)
-        drawLine(color, from, to, strokeWidth = stroke * 0.9f, cap = StrokeCap.Round)
-    }
+    // Hub: horizontal spokes from the emblem to the rim, emblem in the middle (issue #4).
+    drawEmblemHub(c, radius, color, w)
     // Top marker: makes rotation unambiguous
     drawCircle(color, stroke * 1.4f, Offset(c.x, c.y - radius))
 }
+
+/**
+ * The live wheel in the chosen skin. Skins change shape and texture only; the base colour is
+ * always [color] (the coaching state). Accent colours appear only when [decorate] is true
+ * (standby, skin picker), never while a manoeuvre is being coached.
+ */
+internal fun DrawScope.drawSkinnedWheel(skin: WheelSkin, c: Offset, radius: Float, color: Color, stroke: Float, decorate: Boolean) {
+    when (skin) {
+        WheelSkin.CLASSIC -> drawWheel(c, radius, color, stroke, ghost = false)
+        WheelSkin.MASTER_RING -> {
+            drawWheel(c, radius, color, stroke, ghost = false)
+            val accent = if (decorate) SteerinColors.Cyan else color
+            drawCircle(accent.copy(alpha = 0.9f), radius * 0.84f, c, style = Stroke(stroke * 0.35f))
+            // Diamond marker instead of the dot
+            val m = Offset(c.x, c.y - radius); val d = stroke * 1.9f
+            drawPath(Path().apply { moveTo(m.x, m.y - d); lineTo(m.x + d, m.y); lineTo(m.x, m.y + d); lineTo(m.x - d, m.y); close() }, accent)
+        }
+        WheelSkin.CARBON_GRIP -> {
+            // Thick rim with grip notches cut into it
+            drawCircle(color, radius, c, style = Stroke(stroke * 1.7f))
+            val notch = SteerinColors.Background.copy(alpha = 0.55f)
+            for (i in 0 until 36) {
+                val a = Math.toRadians(i * 10.0)
+                val inner = radius - stroke * 0.8f; val outer = radius + stroke * 0.8f
+                drawLine(notch, Offset(c.x + inner * sin(a).toFloat(), c.y - inner * cos(a).toFloat()), Offset(c.x + outer * sin(a).toFloat(), c.y - outer * cos(a).toFloat()), strokeWidth = stroke * 0.22f)
+            }
+            drawWheelHub(c, radius, color, stroke * 1.15f)
+            drawCircle(if (decorate) SteerinColors.Coral else color, stroke * 1.4f, Offset(c.x, c.y - radius))
+        }
+        WheelSkin.NEON_STREAK -> {
+            val glow = if (decorate) SteerinColors.Cyan else color
+            for ((w, a) in listOf(4.2f to 0.10f, 2.8f to 0.16f, 1.8f to 0.26f)) drawCircle(glow.copy(alpha = a), radius, c, style = Stroke(stroke * w))
+            drawWheel(c, radius, color, stroke * 0.8f, ghost = false)
+            // Dashed outer track
+            for (i in 0 until 24) {
+                drawArc(glow.copy(alpha = 0.8f), startAngle = i * 15f, sweepAngle = 7f, useCenter = false,
+                    topLeft = Offset(c.x - radius * 1.12f, c.y - radius * 1.12f), size = Size(radius * 2.24f, radius * 2.24f), style = Stroke(stroke * 0.3f))
+            }
+        }
+        WheelSkin.GOLD_KING -> {
+            val gold = if (decorate) SteerinColors.Gold else color
+            drawWheel(c, radius, color, stroke, ghost = false)
+            drawCircle(gold, radius * 1.1f, c, style = Stroke(stroke * 0.35f))
+            drawEmblemHub(c, radius, gold, stroke * 1.05f, spokes = false)
+            // Crown instead of the dot
+            val top = c.y - radius; val w = stroke * 2.6f; val h = stroke * 2.4f
+            drawPath(Path().apply {
+                moveTo(c.x - w, top + h * 0.5f); lineTo(c.x - w, top - h * 0.6f); lineTo(c.x - w * 0.45f, top - h * 0.05f)
+                lineTo(c.x, top - h); lineTo(c.x + w * 0.45f, top - h * 0.05f); lineTo(c.x + w, top - h * 0.6f); lineTo(c.x + w, top + h * 0.5f); close()
+            }, gold)
+        }
+    }
+}
+
+private fun DrawScope.drawWheelHub(c: Offset, radius: Float, color: Color, w: Float) = drawEmblemHub(c, radius, color, w)
+
+/** Oval + slanted-H emblem and the two horizontal spokes. See [WheelEmblem]. */
+internal fun DrawScope.drawEmblemHub(c: Offset, radius: Float, color: Color, w: Float, spokes: Boolean = true) {
+    val rx = radius * WheelEmblem.OVAL_RX
+    val ry = radius * WheelEmblem.OVAL_RY
+    if (spokes) {
+        for (sx in listOf(-1f, 1f)) {
+            drawLine(color, Offset(c.x + sx * rx, c.y), Offset(c.x + sx * radius * WheelEmblem.SPOKE_OUTER, c.y), strokeWidth = w * 0.9f, cap = StrokeCap.Round)
+        }
+    }
+    drawOval(color, topLeft = Offset(c.x - rx, c.y - ry), size = Size(rx * 2, ry * 2), style = Stroke(w * 0.75f))
+    val l = WheelEmblem.LINES
+    for (i in l.indices step 4) {
+        drawLine(color, Offset(c.x + l[i] * radius, c.y + l[i + 1] * radius), Offset(c.x + l[i + 2] * radius, c.y + l[i + 3] * radius), strokeWidth = w * 0.8f, cap = StrokeCap.Round)
+    }
+}
+
 
 @Preview(widthDp = 320, heightDp = 320, backgroundColor = 0xFF121418, showBackground = true)
 @Composable

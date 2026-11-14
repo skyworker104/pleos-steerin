@@ -3,6 +3,8 @@ package com.steerin.parkingmaster.presentation.voice
 import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.steerin.parkingmaster.presentation.VoiceEvent
@@ -77,9 +79,16 @@ class VoiceCoach(private val context: Context) {
 
     private val tone: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()
 
+    /** Called on the main thread only (Activity lifecycleScope), so no locking is needed. */
+    private val handler = Handler(Looper.getMainLooper())
+    private val scheduler: SpeechScheduler = SpeechScheduler { id, text ->
+        speak(text)
+        handler.postDelayed({ scheduler.onDone(id) }, SpeechScheduler.estimatedDurationMs(text))
+    }
+
     fun handle(event: VoiceEvent) {
         when (event) {
-            is VoiceEvent.Say -> speak(context.getString(event.resId, *event.args.toTypedArray()))
+            is VoiceEvent.Say -> scheduler.submit(context.getString(event.resId, *event.args.toTypedArray()), event.urgent)
             VoiceEvent.SnapTone -> tone?.startTone(ToneGenerator.TONE_PROP_ACK, 120)
         }
     }
@@ -93,6 +102,8 @@ class VoiceCoach(private val context: Context) {
     }
 
     fun shutdown() {
+        handler.removeCallbacksAndMessages(null)
+        scheduler.clear()
         engines.forEach { it.shutdown() }
         runCatching { tone?.release() }
     }

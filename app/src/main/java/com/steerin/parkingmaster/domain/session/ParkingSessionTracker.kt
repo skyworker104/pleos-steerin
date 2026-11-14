@@ -69,6 +69,7 @@ class ParkingSessionTracker(
     private val samples = ArrayList<Sample>()
     private var fastForwardSinceMs: Long? = null
     private var lastSteeringTs: Long? = null
+    private var lastSignalMs: Long? = null
 
     val isSessionActive: Boolean get() = sessionStartMs != null
 
@@ -83,7 +84,11 @@ class ParkingSessionTracker(
     }
 
     fun onSignal(signal: VehicleSignal): TrackerState {
-        val ts = signal.timestampMs
+        // Signals from the Pleos SDK and AAOS are merged and can arrive a few ms out of order.
+        // Clamp to a monotonic clock so dead-reckoning never integrates the same interval twice
+        // and the recorded samples stay sorted.
+        val ts = maxOf(signal.timestampMs, lastSignalMs ?: Long.MIN_VALUE)
+        lastSignalMs = ts
         integrateMotion(ts)
         applyToSnapshot(signal)
 
