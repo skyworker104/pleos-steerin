@@ -199,7 +199,7 @@ adb forward tcp:8088 tcp:8088  # 브라우저에서 http://127.0.0.1:8088/ → V
 ```
 * Virtual Console → Emulation Controls → **Motion**(Gear Selection, Brake Pedal, Steering Angle)으로 R→주행→P 흐름을 만들면 코칭·채점이 동작합니다. 속도는 정수 km/h만 받습니다.
 * 실측 사실: R 기어에서는 시스템 후방 카메라 앱이 앱 영역을 점유하고 P에서 자동 복귀합니다(결과 카드는 P에서 표시). 조향각은 콘솔 기준 부호가 반대라 앱에서 정규화했습니다.
-* 시연 영상(에뮬레이터 화면 녹화, 해설·자막 포함): [`docs/video/6학년5반_나는야주차왕_시연영상.mp4`](docs/video/6%ED%95%99%EB%85%845%EB%B0%98_%EB%82%98%EB%8A%94%EC%95%BC%EC%A3%BC%EC%B0%A8%EC%99%95_%EC%8B%9C%EC%97%B0%EC%98%81%EC%83%81.mp4) · 초기 무음 녹화: [`pleos_connect_model_parking.mp4`](docs/video/pleos_connect_model_parking.mp4)
+* 시연 영상(에뮬레이터 화면 녹화, 해설·자막 포함): [`docs/video/6학년5반_나는야주차왕_시연영상.mp4`](docs/video/6%ED%95%99%EB%85%845%EB%B0%98_%EB%82%98%EB%8A%94%EC%95%BC%EC%A3%BC%EC%B0%A8%EC%99%95_%EC%8B%9C%EC%97%B0%EC%98%81%EC%83%81.mp4) 
 
 ### 4.3 소스 빌드
 ```bash
