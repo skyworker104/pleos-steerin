@@ -1,5 +1,6 @@
 package com.steerin.parkingmaster.presentation
 
+import com.steerin.parkingmaster.data.vehicle.VehicleSignal
 import com.steerin.parkingmaster.domain.model.SessionRecord
 import com.steerin.parkingmaster.domain.session.ParkingSessionTracker
 import com.steerin.parkingmaster.domain.session.SessionReplayer
@@ -36,6 +37,11 @@ class ReplayController(private val scope: CoroutineScope) {
 
     private var job: Job? = null
 
+    /** Playback cursor, kept across pause/resume so playback continues where it stopped. */
+    private var tracker: ParkingSessionTracker? = null
+    private var signals: List<VehicleSignal> = emptyList()
+    private var nextIndex = 0
+
     fun open(record: SessionRecord) {
         stop()
         _state.value = ReplayUiState(record = record)
@@ -45,20 +51,21 @@ class ReplayController(private val scope: CoroutineScope) {
     fun play() {
         val record = _state.value.record ?: return
         if (_state.value.playing) return
-        if (_state.value.finished) _state.update { it.copy(finished = false, progress = 0f, elapsedSec = 0f) }
+        if (_state.value.finished || tracker == null) rewind(record)
         _state.update { it.copy(playing = true) }
+        val tr = checkNotNull(tracker)
         job = scope.launch {
-            val tracker = ParkingSessionTracker().also { it.setSide(record.side) }
-            val signals = SessionReplayer.toSignals(record.log)
             val t0 = record.log.startedAtMs
             val span = (record.log.endedAtMs - t0).coerceAtLeast(1)
-            var lastTs = signals.firstOrNull()?.timestampMs ?: t0
-            for (sig in signals) {
+            var lastTs = signals.getOrNull(nextIndex - 1)?.timestampMs ?: signals.firstOrNull()?.timestampMs ?: t0
+            while (nextIndex < signals.size) {
                 if (!isActive) return@launch
+                val sig = signals[nextIndex]
                 val gap = sig.timestampMs - lastTs
-                if (gap > 0) delay((gap / _state.value.speed).toLong().coerceAtMost(2000))
+                if (gap > 0) delay((gap / _state.value.speed).toLong().coerceAtMost(MAX_GAP_MS))
                 lastTs = sig.timestampMs
-                val ts = tracker.onSignal(sig)
+                val ts = tr.onSignal(sig)
+                nextIndex++
                 _state.update {
                     it.copy(
                         tracker = ts,
@@ -69,6 +76,13 @@ class ReplayController(private val scope: CoroutineScope) {
             }
             _state.update { it.copy(playing = false, finished = true, progress = 1f) }
         }
+    }
+
+    private fun rewind(record: SessionRecord) {
+        tracker = ParkingSessionTracker().also { it.setSide(record.side) }
+        signals = SessionReplayer.toSignals(record.log)
+        nextIndex = 0
+        _state.update { it.copy(finished = false, progress = 0f, elapsedSec = 0f, tracker = TrackerState()) }
     }
 
     fun pause() {
@@ -85,6 +99,14 @@ class ReplayController(private val scope: CoroutineScope) {
 
     fun stop() {
         job?.cancel(); job = null
+        tracker = null
+        signals = emptyList()
+        nextIndex = 0
         _state.value = ReplayUiState()
+    }
+
+    private companion object {
+        /** Long idle stretches are capped so a demo replay never stalls (elapsed time still shows real time). */
+        const val MAX_GAP_MS = 2000L
     }
 }

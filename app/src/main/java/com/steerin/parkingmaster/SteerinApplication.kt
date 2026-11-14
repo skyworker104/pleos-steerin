@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.steerin.parkingmaster.data.outcome.ParkingOutcomeSource
 import com.steerin.parkingmaster.data.outcome.UnavailableOutcomeSource
+import com.steerin.parkingmaster.data.reward.RewardStore
 import com.steerin.parkingmaster.data.session.SessionRepository
 import com.steerin.parkingmaster.data.vehicle.PleosVehicleSignalSource
 import com.steerin.parkingmaster.data.vehicle.SimulatedVehicleSignalSource
@@ -26,6 +27,10 @@ class SteerinApplication : Application() {
     lateinit var sessionRepository: SessionRepository
         private set
 
+    /** Unlocked / selected wheel skins (on-device). */
+    lateinit var rewardStore: RewardStore
+        private set
+
     /**
      * Final slot geometry. Pleos Connect exposes no SVM / parking-slot data to third-party apps
      * today, so this is [UnavailableOutcomeSource]; an SVM-backed source drops in here later.
@@ -35,6 +40,7 @@ class SteerinApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         sessionRepository = SessionRepository(this)
+        rewardStore = RewardStore(this)
         signalSource = if (PleosVehicleSignalSource.isAvailable(this)) {
             Log.i(TAG, "Pleos Vehicle Service detected → using Vehicle SDK")
             PleosVehicleSignalSource(this)

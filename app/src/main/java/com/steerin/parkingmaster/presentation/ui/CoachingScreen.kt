@@ -1,5 +1,7 @@
 package com.steerin.parkingmaster.presentation.ui
 
+import com.steerin.parkingmaster.domain.reward.WheelSkin
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +37,7 @@ import kotlin.math.roundToInt
  * No touch targets: everything here is read-only while the car is in R.
  */
 @Composable
-fun CoachingScreen(state: DrivingState.Coaching, snapshot: VehicleSnapshot, side: ParkingSide, uxRestricted: Boolean) {
+fun CoachingScreen(state: DrivingState.Coaching, snapshot: VehicleSnapshot, side: ParkingSide, uxRestricted: Boolean, skin: WheelSkin = WheelSkin.CLASSIC) {
     val target = state.target
     val instruction = if (state.snapped && target.phase != ManeuverPhase.READY) {
         stringResource(R.string.coach_snapped)
@@ -51,6 +53,7 @@ fun CoachingScreen(state: DrivingState.Coaching, snapshot: VehicleSnapshot, side
                 snapped = state.snapped,
                 toleranceDeg = target.toleranceDeg,
                 modifier = Modifier.fillMaxHeight(0.92f),
+                skin = skin,
             )
         }
         Column(Modifier.weight(0.58f).fillMaxHeight().padding(start = 24.dp), verticalArrangement = Arrangement.Center) {
@@ -117,7 +120,7 @@ private fun PhaseStepper(current: ManeuverPhase) {
 private fun Warnings(snapshot: VehicleSnapshot) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (snapshot.anyDoorOpen) WarningLine(stringResource(R.string.warn_door_open), SteerinColors.Coral)
-        if (snapshot.speedKmh > 5f) WarningLine(stringResource(R.string.warn_speed), SteerinColors.Amber)
+        if (ParkingViewModel.isOverSpeed(snapshot.speedKmh)) WarningLine(stringResource(R.string.warn_speed), SteerinColors.Amber)
     }
 }
 

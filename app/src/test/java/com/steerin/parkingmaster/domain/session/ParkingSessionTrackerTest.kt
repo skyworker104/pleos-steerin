@@ -78,4 +78,16 @@ class ParkingSessionTrackerTest {
         val after = tracker.onSignal(VehicleSignal.Speed(0f, 1_000_000L))
         assertTrue(after.driving is DrivingState.Driving)
     }
+
+    @Test
+    fun `out-of-order signals keep recorded samples monotonic`() {
+        val t = ParkingSessionTracker()
+        t.onSignal(VehicleSignal.GearChanged(GearPosition.REVERSE, 1_000))
+        t.onSignal(VehicleSignal.Speed(3f, 1_200))
+        t.onSignal(VehicleSignal.SteeringAngle(90f, 1_190)) // merged stream: arrives 10 ms late
+        t.onSignal(VehicleSignal.Speed(3f, 3_400))
+        val result = t.onSignal(VehicleSignal.GearChanged(GearPosition.PARK, 3_500)).driving as DrivingState.Result
+        val ts = result.log.samples.map { it.timestampMs }
+        assertEquals(ts.sorted(), ts)
+    }
 }

@@ -67,6 +67,17 @@ Pleos Connect 앱은 다릅니다. 차량이 이미 알고 있는 **조향각, �
 | :--: | :--: |
 | ![history](docs/screenshots/07_history_pleos.png) | ![replay](docs/screenshots/08_replay_pleos.png) |
 
+### 2.4.1 목표 달성 보상: 핸들 스킨 · 캐릭터 휠리 · 연속 기록
+* **핸들 스킨 5종**: 클래식(기본) / 마스터 링(70점 이상 1회) / 카본 그립(주차 10회) / 네온 스트릭(70점 이상 5회 연속) / 주차왕 골드(90점 이상 3회). 해금 시 결과 카드에 배너가 뜨고, 대기 화면의 **핸들 스킨**에서 고릅니다. 획득 기록은 세션 파일과 따로 저장되어 이력을 지워도 유지됩니다(`data/reward/RewardStore`).
+* **안전 원칙**: 스킨은 테두리·중앙·마커 모양만 바꿉니다. 코칭 중에는 모든 스킨이 같은 의미 색(파랑 목표·초록 정렬·빨강 경고)으로 그려지고, 금색·네온 장식 색은 정차 화면에서만 보입니다.
+* **캐릭터 휠리**: 코드로 그린 자체 타이어 캐릭터. 대기 화면에서 인사·연속 연습일·다음 핸들 목표를, 결과 화면에서 점수별 표정과 한 줄 응원을 보여 줍니다. 재촉 알림은 보내지 않습니다.
+* 판정 로직은 순수 Kotlin(`domain/reward/Rewards.kt`)이며 `RewardEngineTest`로 검증합니다.
+* 핸들 중앙은 현대자동차 엠블럼 형상(타원 + 기울어진 H)입니다(이슈 #4, 공모전 출품용). 공식 벡터 원본을 받으면 `WheelEmblem`만 교체하면 됩니다.
+
+| 핸들 스킨 선택 | 새 스킨 획득 + 휠리 |
+| :--: | :--: |
+| ![skins](docs/screenshots/v3_2026-11-14/02_skin_picker.png) | ![unlock](docs/screenshots/v3_2026-11-14/03_result_unlock_neon_90.png) |
+
 ### 2.5 주차 위치 점수 (SVM 연동 확장, 구현 완료)
 * 과정 점수에 더해 "어디에 세웠는가"를 보는 **위치 점수 100점**(주차선 안 30 · 좌우 균형 30 · 앞뒤 깊이 20 · 평행 정렬 20)을 구현했습니다. 종합 점수는 과정 70% + 위치 30%입니다.
 * 입력은 SVM이 이미 계산하는 **인식 결과 숫자**(좌·우·앞·뒤 간격, 기울기, 신뢰도)이며 영상은 쓰지 않습니다. 현재 Pleos는 이 데이터를 제공하지 않으므로 운영 기본값은 "위치 점수 없음"이고, SVM이 공개되면 데이터 소스 하나만 연결하면 됩니다.
@@ -180,7 +191,7 @@ app/src/main/java/com/steerin/parkingmaster/
       ├── overlay/  CoachNotifier(헤즈업 알림) · GhostOverlayWindow(디버그 실험)
       ├── ux/UxRestrictionsMonitor.kt      # CarUxRestrictions 연동
       └── voice/  VoiceCoach · PleosTtsEngine   # Pleos TTS SDK(ON_DEVICE) / Android TTS 폴백 + Snap-In 확인음
-app/src/test/…                             # 단위 테스트 33건 (채점·위치 채점·모델·플래너·세션·코덱/리플레이)
+app/src/test/…                             # 단위 테스트 50건 (채점·위치 채점·모델·플래너·세션·코덱/리플레이·음성 스케줄러·차량 소스)
 docs/                                      # SCORING.md, DEMO_SCRIPT.md, SVM_POSITION_SCORE.md, PT_SVM_ADDENDUM.md, 분석 보고서
 apk/                                       # 제출용 release APK
 ```

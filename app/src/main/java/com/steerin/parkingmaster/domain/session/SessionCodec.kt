@@ -65,10 +65,14 @@ object SessionCodec {
             if (line.isEmpty()) continue
             val p = line.split(',')
             if (p.size < 6) continue
+            // A single corrupt row is skipped, not allowed to discard the whole session.
+            val ts = p[0].toLongOrNull() ?: continue
+            val steer = p[1].toFloatOrNull() ?: continue
+            val speed = p[2].toFloatOrNull() ?: continue
             samples += Sample(
-                timestampMs = p[0].toLong(),
-                steeringDeg = p[1].toFloat(),
-                speedKmh = p[2].toFloat(),
+                timestampMs = ts,
+                steeringDeg = steer,
+                speedKmh = speed,
                 gear = gearFromCode(p[3]),
                 brakePressed = p[4] == "1",
                 anyDoorOpen = p[5] == "1",

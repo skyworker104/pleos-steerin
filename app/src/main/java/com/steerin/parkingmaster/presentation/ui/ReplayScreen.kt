@@ -1,5 +1,7 @@
 package com.steerin.parkingmaster.presentation.ui
 
+import com.steerin.parkingmaster.domain.reward.WheelSkin
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +41,7 @@ private val DATE_FORMAT = SimpleDateFormat("yyyy.M.d HH:mm", Locale.KOREA)
  * Parked-only; touch is allowed. Voice is intentionally silent during replay.
  */
 @Composable
-fun ReplayScreen(controller: ReplayController, onClose: () -> Unit) {
+fun ReplayScreen(controller: ReplayController, onClose: () -> Unit, skin: WheelSkin = WheelSkin.CLASSIC) {
     val st by controller.state.collectAsStateWithLifecycle()
     val record = st.record
     val replayOutcome = remember(record) { SlotOutcomeEvaluator().evaluate(record?.slot) }
@@ -71,7 +73,7 @@ fun ReplayScreen(controller: ReplayController, onClose: () -> Unit) {
         // Body: same HUD as live coaching
         Box(Modifier.fillMaxSize()) {
             when (val d = st.tracker.driving) {
-                is DrivingState.Coaching -> CoachingScreen(d, st.tracker.snapshot, st.tracker.side, uxRestricted = false)
+                is DrivingState.Coaching -> CoachingScreen(d, st.tracker.snapshot, st.tracker.side, uxRestricted = false, skin = skin)
                 is DrivingState.Result -> ResultScreen(d.score, outcome = replayOutcome, onAcknowledge = onClose)
                 DrivingState.Driving -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(if (st.finished) R.string.replay_done else R.string.replay_loading), color = SteerinColors.Muted, style = MaterialTheme.typography.bodyLarge)

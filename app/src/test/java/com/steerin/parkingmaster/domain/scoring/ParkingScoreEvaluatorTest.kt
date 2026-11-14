@@ -61,7 +61,8 @@ class ParkingScoreEvaluatorTest {
         assertEquals(1, score.metrics.harshBrakeCount)
         assertEquals(9f, score.metrics.maxReverseSpeedKmh, 0.01f)
         val speedCat = score.categories.first { it.category == ScoreCategory.SPEED_AND_BRAKING }
-        assertTrue("expected heavy penalty, got ${speedCat.points}", speedCat.points <= 8)
+        // 9 km/h → 4 over → (4 + 1) × 2 = 10, one harsh brake → 4 : 20 − 14 = 6
+        assertEquals(6, speedCat.points)
     }
 
     @Test
@@ -90,5 +91,46 @@ class ParkingScoreEvaluatorTest {
         assertTrue(score.total in 0..100)
         assertTrue(score.total < 50)
         assertEquals(com.steerin.parkingmaster.domain.model.RewardTier.PRACTICE, score.tier)
+    }
+
+    private fun steeringPoints(l: SessionLog) = evaluator.evaluate(l).categories.first { it.category == ScoreCategory.STEERING_STABILITY }.points
+
+    @Test
+    fun `steering rate at the 220 deg per s limit is free, just above costs 2 of 35`() {
+        // 1 s apart, moving: rate == |Δsteer|. No reversals (single monotonic turn).
+        assertEquals(35, steeringPoints(log(Row(0f, 0f, 2f), Row(1f, 220f, 2f), Row(2f, 220f, 0f, GearPosition.PARK))))
+        assertEquals(33, steeringPoints(log(Row(0f, 0f, 2f), Row(1f, 221f, 2f), Row(2f, 221f, 0f, GearPosition.PARK))))
+    }
+
+    @Test
+    fun `steering jump right after an interleaved speed sample is not lost`() {
+        // Speed sample at 0.98 s, steering jumps 0 → 100° at 1.00 s (20 ms later); measured over 0.98 → 1.10 s.
+        val samples = listOf(
+            Sample(0, 0f, 2f, GearPosition.REVERSE, false, false),
+            Sample(980, 0f, 2.1f, GearPosition.REVERSE, false, false),
+            Sample(1000, 100f, 2.1f, GearPosition.REVERSE, false, false),
+            Sample(1100, 100f, 2.1f, GearPosition.REVERSE, false, false),
+        )
+        val rate = evaluator.maxSteeringRateWhileMoving(samples)
+        assertTrue("rate was $rate", rate > 90f)
+    }
+
+    @Test
+    fun `bursts closer than 50 ms are measured over the anchor window, not dropped`() {
+        // 100° every 40 ms (the review's example): previously every interval was skipped → rate 0.
+        val samples = (0..10).map { Sample(it * 40L, it * 100f, 2f, GearPosition.REVERSE, false, false) }
+        val rate = evaluator.maxSteeringRateWhileMoving(samples)
+        assertEquals(2500f, rate, 1f) // 200° per 80 ms
+    }
+
+    @Test
+    fun `harsh brake landing just after an interleaved sample is still counted`() {
+        val samples = listOf(
+            Sample(0, 0f, 8f, GearPosition.REVERSE, false, false),
+            Sample(470, 5f, 8f, GearPosition.REVERSE, true, false),  // steering + brake update
+            Sample(500, 5f, 0f, GearPosition.REVERSE, true, false),  // speed drops 30 ms later
+            Sample(600, 5f, 0f, GearPosition.REVERSE, true, false),  // next update: window 470 → 600 ms
+        )
+        assertEquals(1, evaluator.countHarshBrakes(samples))
     }
 }

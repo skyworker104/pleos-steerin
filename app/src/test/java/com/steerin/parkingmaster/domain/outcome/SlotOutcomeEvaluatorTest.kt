@@ -71,4 +71,18 @@ class SlotOutcomeEvaluatorTest {
         assertTrue("good=$good mid=$mid poor=$poor", good > mid && mid > poor)
         assertEquals(SlotSource.SIMULATED, SimulatedOutcomeSource.fixtureFor(95, 0L).source)
     }
+
+    @Test
+    fun `crossing a line by exactly 10 cm still earns half of IN_SLOT`() {
+        assertEquals(15, evaluator.evaluate(obs(right = -10f))!!.points(OutcomeCategory.IN_SLOT))
+        assertEquals(0, evaluator.evaluate(obs(right = -10.1f))!!.points(OutcomeCategory.IN_SLOT))
+    }
+
+    @Test
+    fun `combined score rounds 71_5 up to 72`() {
+        val outcome = OutcomeScore(19, emptyList(), obs())
+        assertEquals(72, evaluator.combined(94, outcome)) // 94·0.7 + 19·0.3 = 71.5
+        assertEquals(94, evaluator.combined(94, null))
+        assertEquals(100, evaluator.combined(100, OutcomeScore(100, emptyList(), obs())))
+    }
 }

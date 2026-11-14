@@ -18,7 +18,11 @@ import java.util.Locale
  * needs in an underground car park. Pleos Connect images ship no Android TTS engine, so without
  * this the coaching would be silent on the real platform.
  */
-class PleosTtsEngine(context: Context) : VoiceEngine {
+class PleosTtsEngine(
+    context: Context,
+    /** Receives the prompt that was queued while initialising, if initialisation then fails. */
+    private val onInitFailed: (pending: String?) -> Unit = {},
+) : VoiceEngine {
 
     private val tts = TextToSpeech(context.applicationContext, Mode.ON_DEVICE)
 
@@ -62,6 +66,9 @@ class PleosTtsEngine(context: Context) : VoiceEngine {
                 Log.w(TAG, "Pleos TTS init failed: $errorType")
                 failed = true
                 ready = false
+                val queued = pending
+                pending = null
+                onInitFailed(queued)
             }
         })
     }

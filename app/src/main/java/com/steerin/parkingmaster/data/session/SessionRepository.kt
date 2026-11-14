@@ -16,8 +16,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -36,6 +37,8 @@ class SessionRepository(
     val summaries: StateFlow<List<SessionSummary>> = _summaries.asStateFlow()
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
+        // Leftovers of a write interrupted before its rename (see save) are never valid sessions.
+        dir.listFiles { f -> f.extension == "tmp" && System.currentTimeMillis() - f.lastModified() > 60_000 }.orEmpty().forEach { it.delete() }
         val list = dir.listFiles { f -> f.extension == "txt" }.orEmpty()
             .mapNotNull { f -> runCatching { toSummary(SessionCodec.decode(f.readText())) }.onFailure { Log.w(TAG, "skip ${f.name}: ${it.message}") }.getOrNull() }
             .sortedByDescending { it.savedAtEpochMs }
@@ -44,9 +47,12 @@ class SessionRepository(
 
     suspend fun save(log: SessionLog, side: ParkingSide, slot: SlotObservation? = null): SessionRecord = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        val id = ID_FORMAT.format(Date(now)) + "-" + (now % 10_000).toString().padStart(4, '0')
+        val id = ID_FORMAT.format(Instant.ofEpochMilli(now)) + "-" + (now % 10_000).toString().padStart(4, '0')
         val record = SessionRecord(id, now, side, log, slot)
-        File(dir, "$id.txt").writeText(SessionCodec.encode(record))
+        // Write to a temp file and rename, so an interrupted write never leaves a truncated session.
+        val tmp = File(dir, "$id.tmp")
+        tmp.writeText(SessionCodec.encode(record))
+        if (!tmp.renameTo(File(dir, "$id.txt"))) { tmp.delete(); error("rename failed for $id") }
         trim()
         refresh()
         record
@@ -81,6 +87,7 @@ class SessionRepository(
 
     companion object {
         private const val TAG = "SessionRepo"
-        private val ID_FORMAT = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
+        /** Immutable and thread-safe (SimpleDateFormat is not, and saves run on Dispatchers.IO). */
+        private val ID_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US).withZone(ZoneId.systemDefault())
     }
 }

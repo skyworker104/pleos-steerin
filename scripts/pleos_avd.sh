@@ -22,7 +22,7 @@ AVD_NAME="Pleos_Connect_v2.1"
 PKG="system-images;android-34;pleos_car_emulator;arm64-v8a"
 SITE_URL="https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-arm64-sys-img.xml"
 APP_ID="com.steerin.parkingmaster.debug"
-ACTIVITY="com.steerin.parkingmaster/.presentation.MainActivity"
+ACTIVITY="com.steerin.parkingmaster.presentation.MainActivity"
 PERMS=(
   pleos.car.permission.READ_CAR_STEERING pleos.car.permission.CAR_DRIVE pleos.car.permission.CAR_DOORS
   pleos.car.permission.CAR_SAFETY pleos.car.permission.CAR_SPEED pleos.car.permission.CAR_INFO
@@ -55,6 +55,7 @@ cmd_start() {
   "$ADB" wait-for-device
   until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 3; done
   echo ">> $AVD_NAME booted"
+  "$ADB" forward tcp:8088 tcp:8088 && echo ">> Virtual Console: http://127.0.0.1:8088/"
 }
 
 cmd_deploy() {

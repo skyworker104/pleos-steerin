@@ -72,14 +72,11 @@ function tag(slide, t, x, y, w, color) {
 // Steering wheel drawn from shapes
 function wheel(slide, cx, cy, r, color, { lineW = 4, transparency = 0 } = {}) {
   slide.addShape(pres.ShapeType.ellipse, { x: cx - r, y: cy - r, w: 2 * r, h: 2 * r, fill: { color: H.lt1, transparency: 100 }, line: { color, width: lineW, transparency }, objectName: "wheel-rim" });
-  const hub = r * 0.18;
-  slide.addShape(pres.ShapeType.ellipse, { x: cx - hub, y: cy - hub, w: 2 * hub, h: 2 * hub, fill: { color: H.lt1, transparency: 100 }, line: { color, width: lineW * 0.8, transparency }, objectName: "wheel-hub" });
-  const spokes = [90, 210, 330];
-  spokes.forEach((deg) => {
-    const rad = (deg * Math.PI) / 180;
-    const x1 = cx + Math.cos(rad) * hub, y1 = cy + Math.sin(rad) * hub;
-    const x2 = cx + Math.cos(rad) * r * 0.97, y2 = cy + Math.sin(rad) * r * 0.97;
-    slide.addShape(pres.ShapeType.line, { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1) || 0.01, h: Math.abs(y2 - y1) || 0.01, line: { color, width: lineW * 0.8, transparency }, flipH: x2 < x1, flipV: y2 < y1, objectName: "wheel-spoke" });
+  // "H in a circle" (issue #4): rim-to-rim horizontal spoke + two short vertical bars.
+  const bar = r * 0.2;
+  slide.addShape(pres.ShapeType.line, { x: cx - r * 0.97, y: cy, w: r * 1.94, h: 0, line: { color, width: lineW * 0.8, transparency }, objectName: "wheel-spoke" });
+  [-bar, bar].forEach((dx) => {
+    slide.addShape(pres.ShapeType.line, { x: cx + dx, y: cy - bar, w: 0, h: 2 * bar, line: { color, width: lineW, transparency }, objectName: "wheel-hub" });
   });
   const dot = r * 0.07;
   slide.addShape(pres.ShapeType.ellipse, { x: cx - dot, y: cy - r - dot, w: 2 * dot, h: 2 * dot, fill: { color, transparency }, line: { color, width: 0, transparency }, objectName: "wheel-marker" });
@@ -293,7 +290,7 @@ pres.addSection({ title: "구현" });
   s.addText("시스템 구성: 온디바이스, 세 계층", { placeholder: "title" });
   const layers = [
     ["Presentation", "MainActivity · ParkingViewModel · Compose UI (GhostRing, Coaching, Result, History, Replay) · VoiceCoach(Pleos TTS) · CoachNotifier(헤즈업)", H.accent2],
-    ["Domain (순수 Kotlin, 단위 테스트 33건)", "ParkingSessionTracker · GhostTargetPlanner · BicycleModel · ParkingScoreEvaluator(과정) · SlotOutcomeEvaluator(위치)", H.accent1],
+    ["Domain (순수 Kotlin, 전체 단위 테스트 50건)", "ParkingSessionTracker · GhostTargetPlanner · BicycleModel · ParkingScoreEvaluator(과정) · SlotOutcomeEvaluator(위치)", H.accent1],
     ["Data", "PleosVehicleSignalSource (조향각·브레이크·도어) · AaosCarSignalSource (차속·기어) · Simulated 소스 · ParkingOutcomeSource (SVM 자리, 현재 미제공)", H.accent4],
   ];
   layers.forEach(([t, d, color], i) => {
@@ -343,10 +340,39 @@ pres.addSection({ title: "구현" });
   card(s, M, 5.2, W - 2 * M, 1.4);
   text(s, "검증", M + 0.3, 5.35, 2, 0.35, { size: 15, bold: true, color: H.accent2 });
   bullets(s, [
-    "단위 테스트 33건 + Pleos Connect 에뮬레이터 실측: 5개 신호 실수신, 채점, 온디바이스 TTS, 이력·리플레이, 위치 점수 화면 확인",
+    "단위 테스트 50건 + Pleos Connect 에뮬레이터 실측: 5개 신호 실수신, 채점, 온디바이스 TTS, 이력·리플레이, 위치 점수 화면 확인",
     "GitHub 저장소에 소스 · release APK · 빌드 재현 방법 포함 (서명 키는 저장소 밖에 보관)",
   ], M + 0.3, 5.75, W - 2 * M - 0.6, 0.8, { size: 12.5, psa: 4 });
   s.addNotes("PT 리스크 대비: AVD 문제 시 경로 B로 즉시 전환. 두 경로의 화면 흐름은 동일.");
+}
+
+// ================= Slide 10.5: Rear-visibility regulation (issues #2, #3)
+{
+  const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "구현" });
+  s.addText("R단 화면 법규 대응: 카메라 영상은 가리지 않습니다", { placeholder: "title" });
+  card(s, M, 1.65, W - 2 * M, 1.3, { line: H.accent3 });
+  text(s, "제약", M + 0.3, 1.8, 2, 0.35, { size: 15, bold: true, color: H.accent3 });
+  bullets(s, [
+    "FMVSS 111(미국 후방 시야 기준): R 진입 2초 안에 후방 영상, 차량 후방 지정 구역이 영상에 보여야 함 → 앱 그래픽으로 영상을 가리면 위반 소지",
+    "출시 버전의 R단 코칭은 음성 중심. 카메라 위 운전대 그림은 에뮬레이터 개념 시연",
+  ], M + 0.3, 2.15, W - 2 * M - 0.6, 0.8, { size: 12.5, psa: 4 });
+  const cw = (W - 2 * M - 0.4) / 2;
+  card(s, M, 3.2, cw, 2.6, { line: H.accent1 });
+  tag(s, "확장 ① HUD · 디지털 클러스터", M + 0.3, 3.4, 3.0, H.accent1);
+  bullets(s, [
+    "목표 조향 원호 + 화살표 하나 → 시선은 후방 영상·거울에 유지",
+    "앱은 코칭 상태(단계·목표각·정렬)를 이미 데이터로 생성",
+    "OEM 시스템 레이어가 그리는 연동 API를 Pleos에 제안",
+  ], M + 0.3, 3.95, cw - 0.6, 1.8, { size: 13, psa: 8 });
+  const bx = M + cw + 0.4;
+  card(s, bx, 3.2, cw, 2.6, { line: H.accent2 });
+  tag(s, "확장 ② PGL 통합 표출", bx + 0.3, 3.4, 3.0, H.accent2);
+  bullets(s, [
+    "카메라가 원래 그리는 주차 가이드 라인 안에 목표 궤적선(고스트)을 함께 표시",
+    "현재 궤적선이 목표선에 겹치면 녹색 → Ghost Ring의 스냅 경험을 그대로 이식",
+    "인증된 카메라 레이어 안에서 그리므로 영상 가림 문제가 없음",
+  ], bx + 0.3, 3.95, cw - 0.6, 1.8, { size: 13, psa: 8 });
+  s.addNotes("이슈 #2·#3. 상세: docs/REAR_VISIBILITY_HUD_STRATEGY.md. 조문 단위 확인(시야 구역 크기 등)은 법무 검토 예정이라고 답변.");
 }
 
 // ================= Slide 11: Business

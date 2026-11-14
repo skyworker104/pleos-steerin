@@ -18,6 +18,7 @@ object SteerinColors {
     val Green = Color(0xFF00E676)     // snapped / success
     val Coral = Color(0xFFFF5252)     // misaligned / danger
     val Amber = Color(0xFFFFC107)     // caution
+    val Gold = Color(0xFFFFD86B)      // reward decoration only (never a coaching signal)
     val Text = Color(0xFFF2F4F7)
     val Muted = Color(0xFF9AA3AF)
     val Outline = Color(0xFF343A45)

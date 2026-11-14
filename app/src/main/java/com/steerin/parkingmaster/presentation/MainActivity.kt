@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.steerin.parkingmaster.domain.session.DrivingState
 import com.steerin.parkingmaster.presentation.overlay.CoachNotifier
@@ -16,6 +17,7 @@ import com.steerin.parkingmaster.presentation.ui.theme.SteerinTheme
 import com.steerin.parkingmaster.R
 import com.steerin.parkingmaster.presentation.ux.UxRestrictionsMonitor
 import com.steerin.parkingmaster.presentation.voice.VoiceCoach
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -52,22 +54,21 @@ class MainActivity : ComponentActivity() {
         // mirror the instruction into a heads-up notification and, where allowed, the ghost overlay.
         notifier = CoachNotifier(this)
         overlay = GhostOverlayWindow(this)
+        // Re-evaluated on every UI change *and* every lifecycle change, so the banner appears the moment
+        // the camera takes the foreground (even with the car standing still) and clears on return.
         lifecycleScope.launch {
-            viewModel.ui.collect { ui ->
-                val d = ui.tracker.driving
-                val inFront = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
-                if (d is DrivingState.Coaching && !inFront) {
-                    val text = getString(
-                        if (d.snapped && d.target.phase != com.steerin.parkingmaster.domain.model.ManeuverPhase.READY) R.string.coach_snapped
-                        else ParkingViewModel.phasePrompt(d.target.phase, ui.tracker.side),
-                    )
-                    notifier.show(text, d.snapped)
-                    overlay.show(ui.tracker.snapshot.steeringDeg, d.target.targetDeg, d.target.toleranceDeg, d.snapped, text)
-                } else {
-                    notifier.dismiss()
-                    overlay.hide()
+            combine(viewModel.ui, lifecycle.currentStateFlow) { ui, life -> ui to life.isAtLeast(Lifecycle.State.RESUMED) }
+                .collect { (ui, inFront) ->
+                    val d = ui.tracker.driving
+                    if (d is DrivingState.Coaching && !inFront) {
+                        val text = getString(ParkingViewModel.headsUpText(d, ui.tracker))
+                        notifier.show(text, d.snapped)
+                        overlay.show(ui.tracker.snapshot.steeringDeg, d.target.targetDeg, d.target.toleranceDeg, d.snapped, text)
+                    } else {
+                        notifier.dismiss()
+                        overlay.hide()
+                    }
                 }
-            }
         }
 
         if (isAutomotive()) {

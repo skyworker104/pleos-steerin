@@ -41,6 +41,8 @@ import com.steerin.parkingmaster.domain.outcome.OutcomeScore
 import com.steerin.parkingmaster.domain.outcome.SlotObservation
 import com.steerin.parkingmaster.domain.outcome.SlotOutcomeEvaluator
 import com.steerin.parkingmaster.domain.outcome.SlotSource
+import com.steerin.parkingmaster.domain.reward.MascotMood
+import com.steerin.parkingmaster.domain.reward.WheelSkin
 import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
 
 /**
@@ -51,7 +53,10 @@ import com.steerin.parkingmaster.presentation.ui.theme.SteerinColors
  * slot diagram with the four gaps is added on the right.
  */
 @Composable
-fun ResultScreen(score: ParkingScore, outcome: OutcomeScore? = null, onAcknowledge: () -> Unit) {
+fun ResultScreen(
+    score: ParkingScore, outcome: OutcomeScore? = null, onAcknowledge: () -> Unit,
+    newlyUnlocked: List<WheelSkin> = emptyList(), goodStreak: Int = 0,
+) {
     val combined = SlotOutcomeEvaluator().combined(score.total, outcome)
     val tier = RewardTier.fromScore(combined)
     Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -82,6 +87,17 @@ fun ResultScreen(score: ParkingScore, outcome: OutcomeScore? = null, onAcknowled
             Modifier.weight(if (outcome == null) 0.62f else 0.44f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
+            if (newlyUnlocked.isNotEmpty()) {
+                UnlockBanner(newlyUnlocked)
+                Spacer(Modifier.height(6.dp))
+            }
+            val mood = MascotMood.forScore(combined)
+            val lines = buildList {
+                add(stringResource(mascotResultLine(mood)))
+                if (goodStreak >= 2) add(stringResource(R.string.mascot_good_streak, goodStreak))
+            }
+            MascotBubble(mood, lines, mascotSize = 48.dp)
+            Spacer(Modifier.height(6.dp))
             score.categories.forEach { CategoryBar(it) }
             Spacer(Modifier.height(6.dp))
             val m = score.metrics
@@ -112,6 +128,27 @@ fun ResultScreen(score: ParkingScore, outcome: OutcomeScore? = null, onAcknowled
             }
         }
     }
+}
+
+@Composable
+private fun UnlockBanner(skins: List<WheelSkin>) {
+    Row(
+        Modifier.fillMaxWidth().background(SteerinColors.Gold.copy(alpha = 0.14f), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        GhostRing(liveDeg = 0f, targetDeg = 0f, snapped = false, toleranceDeg = 5f, showGhost = false, skin = skins.last(), decorate = true, modifier = Modifier.height(40.dp))
+        Column {
+            Text(stringResource(R.string.skin_unlocked_banner, skins.map { stringResource(skinName(it)) }.joinToString(", ")), style = MaterialTheme.typography.titleMedium, color = SteerinColors.Gold)
+            Text(stringResource(R.string.skin_unlocked_hint), style = MaterialTheme.typography.labelMedium, color = SteerinColors.Muted)
+        }
+    }
+}
+
+fun mascotResultLine(m: MascotMood): Int = when (m) {
+    MascotMood.PROUD -> R.string.mascot_result_proud
+    MascotMood.CHEER -> R.string.mascot_result_cheer
+    MascotMood.ENCOURAGE, MascotMood.HELLO -> R.string.mascot_result_encourage
+    MascotMood.COMFORT -> R.string.mascot_result_comfort
 }
 
 /** Picks the tip for whichever of the process or result categories lost the most, proportionally. */

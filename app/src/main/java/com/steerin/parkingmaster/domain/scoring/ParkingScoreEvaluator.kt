@@ -101,15 +101,23 @@ class ParkingScoreEvaluator(
         return reversals
     }
 
+    /**
+     * Rates are measured against an *anchor* sample that only advances once at least
+     * [MIN_RATE_WINDOW_MS] has elapsed. Samples closer than that are not dropped: speed, steering and
+     * brake updates arrive interleaved, so a steering jump often lands a few ms after a speed sample.
+     * Comparing only adjacent samples would silently discard that jump.
+     */
     internal fun maxSteeringRateWhileMoving(samples: List<Sample>): Float {
         var maxRate = 0f
+        var anchor = samples.firstOrNull() ?: return 0f
         for (i in 1 until samples.size) {
-            val a = samples[i - 1]
             val b = samples[i]
-            val dt = (b.timestampMs - a.timestampMs) / 1000f
-            if (dt < 0.05f) continue // ignore bursts of near-simultaneous updates
+            val dtMs = b.timestampMs - anchor.timestampMs
+            if (dtMs < MIN_RATE_WINDOW_MS) continue
+            val a = anchor
+            anchor = b
             if (b.speedKmh <= config.movingThresholdKmh && a.speedKmh <= config.movingThresholdKmh) continue
-            val rate = abs(b.steeringDeg - a.steeringDeg) / dt
+            val rate = abs(b.steeringDeg - a.steeringDeg) / (dtMs / 1000f)
             maxRate = max(maxRate, rate)
         }
         return maxRate
@@ -131,12 +139,14 @@ class ParkingScoreEvaluator(
     internal fun countHarshBrakes(samples: List<Sample>): Int {
         var count = 0
         var lastEventMs: Long? = null
+        var anchor = samples.firstOrNull() ?: return 0
         for (i in 1 until samples.size) {
-            val a = samples[i - 1]
             val b = samples[i]
-            val dt = (b.timestampMs - a.timestampMs) / 1000f
-            if (dt < 0.05f) continue
-            val decel = (a.speedKmh - b.speedKmh) / dt
+            val dtMs = b.timestampMs - anchor.timestampMs
+            if (dtMs < MIN_RATE_WINDOW_MS) continue // same anchor rule as the steering rate
+            val a = anchor
+            anchor = b
+            val decel = (a.speedKmh - b.speedKmh) / (dtMs / 1000f)
             val debounced = lastEventMs?.let { b.timestampMs - it <= config.harshBrakeDebounceMs } ?: false
             if (decel >= config.harshBrakeKmhPerSec && b.brakePressed && !debounced) {
                 count++
@@ -201,5 +211,10 @@ class ParkingScoreEvaluator(
         val over = m.durationSec - config.durationFreeSec
         val penalty = if (over > 0) min(cat.maxPoints, ((over / 10f).toInt() + 1) * config.durationPenaltyPer10Sec) else 0
         return CategoryScore(cat, (cat.maxPoints - penalty).coerceAtLeast(0), "duration=${m.durationSec.toInt()}s")
+    }
+
+    private companion object {
+        /** Shortest window over which a rate (deg/s, km/h/s) is computed; avoids divide-by-near-zero spikes. */
+        const val MIN_RATE_WINDOW_MS = 50L
     }
 }
