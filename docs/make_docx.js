@@ -53,7 +53,7 @@ const W = 9638; // usable width A4 with 2.54cm margins (11906 - 2*1134)
 const children = [];
 
 // ---- Title block
-children.push(p([new TextRun({ text: "현대자동차그룹 차량용 앱 개발 공모전 기획서 (v6.1)", size: 22, color: GREY })], { after: 40 }));
+children.push(p([new TextRun({ text: "현대자동차그룹 차량용 앱 개발 공모전 기획서 (v6.2)", size: 22, color: GREY })], { after: 40 }));
 children.push(p([new TextRun({ text: "나는야 주차왕 (Parking Master)", size: 40, bold: true, color: DARK })], { after: 40 }));
 children.push(p([new TextRun({ text: "Pleos Vehicle SDK 실시간 차량 신호 기반 후진 주차 과정 평가 및 Ghost Ring 조향 코칭 앱", size: 22, color: CYAN, bold: true })], { after: 160 }));
 
@@ -119,6 +119,14 @@ children.push(bullet([b("결과 화면: "), r("주차칸과 차량을 위에서 
 children.push(bullet([b("신뢰도 기준: "), r("인식 신뢰도가 0.6 미만이면 위치 점수를 표시하지 않아 잘못된 감점을 막습니다.")]));
 children.push(bullet([b("시연 방식: "), r("현재 Pleos는 SVM 데이터를 제공하지 않으므로, 대기 화면의 \"SVM 위치 점수 시연\" 스위치(기본 꺼짐)를 켜면 과정 점수 구간별 고정 예시값으로 화면과 채점을 보여줍니다. 이 값은 측정치가 아니며 화면과 이력에 항상 \"가상 데이터\"로 표시됩니다.")]));
 
+children.push(h2("3.6 후방 영상 법규 대응 및 HUD·클러스터 표출 전략"));
+children.push(p("미국 FMVSS No. 111(후방 시야 기준)은 후진 기어 체결 후 2초 안에 후방 영상을 표시하고, 차량 바로 뒤 지정 구역이 영상에 보이도록 요구합니다. 앱 그래픽으로 이 영상을 가리면 위반 소지가 있으므로, 출시 버전은 R단 카메라 영상 위에 운전대 그림을 그리지 않습니다."));
+children.push(bullet([b("출시 버전: "), r("R단 코칭은 Pleos TTS 음성 중심입니다. Pleos는 기어가 P를 벗어나면 서드파티 화면을 차단하므로 앱 화면의 Ghost Ring은 P단(준비·결과·리플레이)에서만 보입니다. 상단 헤즈업 알림은 법무 검토 후 양산 사용 여부를 결정합니다.")]));
+children.push(bullet([b("시연: "), r("카메라 위 Ghost Ring 팝업은 디버그 빌드 전용 개념 시연이며, release APK에는 오버레이 권한이 없습니다.")]));
+children.push(bullet([b("확장 ① HUD·디지털 클러스터: "), r("목표 조향 원호와 화살표, 단계 문구, 정렬 완료 표시를 HUD·클러스터에 띄워 시선을 후방 영상과 거울에 유지합니다. 앱은 코칭 상태(단계·목표 조향각·정렬 여부)를 이미 데이터로 만들고 있으므로, OEM 시스템 레이어가 그리는 연동 API를 Pleos에 제안합니다.")]));
+children.push(bullet([b("확장 ② PGL 통합 표출: "), r("카메라 시스템이 원래 그리는 주차 가이드 라인(PGL) 안에 목표 궤적선(고스트)을 함께 그리고, 현재 궤적선이 겹치면 녹색으로 바꿉니다. 인증된 카메라 레이어 안에서 그리므로 영상 가림 문제가 없고, Ghost Ring의 스냅 경험을 그대로 옮길 수 있습니다.")]));
+children.push(p("국내 기준과 유럽 UN R158도 같은 취지로 출시 전 인증·법무 검토를 거칩니다. 상세는 저장소 docs/REAR_VISIBILITY_HUD_STRATEGY.md에 있습니다.", { before: 80 }));
+
 // ---- 4
 children.push(h1("4. 사용 시나리오"));
 children.push(table([700, 3000, 5938], [
@@ -147,7 +155,7 @@ children.push(table([1500, 2600, 3538, 2000], [
   ["주행 제한", "AAOS CarUxRestrictionsManager", "onUxRestrictionsChanged", "—"],
 ]));
 children.push(h2("5.3 현재 구현 상태 (1차 제출 시점)"));
-children.push(bullet([b("완료: "), r("데이터 계층(Vehicle SDK·AAOS·시뮬레이터), 자전거 모델, Ghost 목표각 플래너, 100점 채점 엔진, R→P 세션 상태 머신, Compose UI(대기·코칭·결과·이력·리플레이·데모 패널), Pleos TTS 음성, 후방 카메라 위 헤즈업 알림, 주차 위치 점수 확장(인터페이스·채점기·결과 도식), 단위 테스트 33건, release APK. Pleos Connect 에뮬레이터(v2.1.0)에서 조향각·기어·차속·브레이크·도어 실수신과 채점·음성 재생을 확인했습니다.")]));
+children.push(bullet([b("완료: "), r("데이터 계층(Vehicle SDK·AAOS·시뮬레이터), 자전거 모델, Ghost 목표각 플래너, 100점 채점 엔진, R→P 세션 상태 머신, Compose UI(대기·코칭·결과·이력·리플레이·데모 패널), Pleos TTS 음성, 후방 카메라 위 헤즈업 알림, 주차 위치 점수 확장(인터페이스·채점기·결과 도식), 단위 테스트 50건, release APK. Pleos Connect 에뮬레이터(v2.1.0)에서 조향각·기어·차속·브레이크·도어 실수신과 채점·음성 재생을 확인했습니다.")]));
 children.push(bullet([b("시연 방식: "), r("Pleos Connect AVD에서는 Virtual Console의 Motion(기어·브레이크·조향각)·Convenience(트렁크) 카드로 신호를 넣습니다. Vehicle Service가 없는 기기에서는 내장 시뮬레이터(모범 주차·초보 주차 시나리오, 수동 슬라이더)로 동일한 흐름을 재현합니다.")]));
 children.push(bullet([b("PT까지: "), r("실차 기회 확보 시 조향각 부호·콜백 주기 재확인, 헤즈업 문구 길이 확정, PT 리허설(Virtual Console 경로 + 시뮬레이터 경로 이중화).")]));
 children.push(h2("5.4 일정"));
@@ -200,7 +208,7 @@ children.push(bullet("운동학 자전거 모델(Kinematic bicycle model) — �
 
 const doc = new Document({
   creator: "pleos-steerin team",
-  title: "나는야 주차왕 공모전 기획서 v6.1",
+  title: "나는야 주차왕 공모전 기획서 v6.2",
   styles: {
     default: { document: { run: { font: FONT, size: 20 } } },
     paragraphStyles: [
