@@ -22,3 +22,6 @@ claudedocs/tmp/
 # Release signing material stays local (see signing/README.md)
 signing/*.jks
 signing/signing.properties
+
+# 공모전 신청서 (팀원 연락처 포함, 공개 금지)
+docs/archive/contest-application-consent.docx
