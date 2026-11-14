@@ -3,13 +3,46 @@
 > **후진 주차 과정을 차량 신호로 채점하고, Ghost Ring Snap-In 가이드로 코칭하는 Pleos Connect 앱**
 > 현대자동차그룹 차량용 앱 개발 공모전 2026 출품작 · 일반인 부문 · Pleos Connect(Android Automotive OS) 앱
 
+## 📌 심사 필수 항목
+
+### ① 앱 이름 · 한 줄 소개
 | 항목 | 내용 |
 | :-- | :-- |
-| 팀명 / 앱 이름 | 6학년5반 / 나는야 주차왕 (Parking Master) |
-| 한 줄 소개 | R 기어를 넣는 순간부터 P 기어까지, 조향각·기어·차속·브레이크·도어 신호로 주차 과정을 100점 채점하고 목표 조향각을 "잔상 링"으로 보여 주는 후진 주차 코치 |
-| 플랫폼 | Pleos Connect (Android Automotive OS, API 28+) · Pleos Vehicle SDK 2.3.2 · Kotlin · Jetpack Compose |
+| 앱 이름 | **나는야 주차왕** (Parking Master) · 팀 6학년5반 |
+| 한 줄 소개 | R 기어부터 P 기어까지 조향각·기어·차속·브레이크·도어 신호로 후진 주차를 코칭하고 100점 만점으로 채점하는 Pleos Connect 앱 |
+
+### ② 실행 방법
+```bash
+adb install -r apk/6학년5반_나는야주차왕_release.apk
+adb shell am start -n com.steerin.parkingmaster/.presentation.MainActivity
+```
+1. 처음 실행하면 뜨는 **차량 데이터 권한 창에서 허용**을 누릅니다. 상단 칩이 **"Pleos Vehicle SDK"** 로 바뀌면 연결된 것입니다.
+2. Virtual Console(`http://127.0.0.1:8088/`) → Emulation Controls → **Motion** 에서 기어를 **R** 로 바꾸면 코칭이 시작됩니다.
+3. 조향각·차속을 바꿔 가며 후진한 뒤 기어를 **P** 로 바꾸면 100점 결과 카드가 표시됩니다.
+4. 대기 화면에서 **핸들 스킨**, **주차 이력**, **다시 보기(리플레이)** 를 확인할 수 있습니다.
+* Vehicle Service가 없는 일반 Android 기기·에뮬레이터에서는 **"시뮬레이션 모드"** 로 실행되며, 우측 데모 패널의 **"모범 주차 재생"** 으로 전체 흐름을 볼 수 있습니다.
+* 소스 빌드와 AVD 스크립트는 [4. 실행 방법](#4-실행-방법)에 있습니다.
+
+### ③ 테스트 환경 · 필요한 설정
+| 항목 | 내용 |
+| :-- | :-- |
+| 검증 환경 | Pleos Connect 에뮬레이터 `Pleos_Connect_v2.1` (Android 14, 2560×1440, Vehicle Service 2.3.22) · 일반 Android 에뮬레이터 (시뮬레이션 모드) |
+| 최소 요구 | Android API 28 이상 (compileSdk/targetSdk 35) · Pleos Vehicle SDK 2.3.2 (Vehicle Service 2.3.13 이상) |
+| 빌드 도구 | JDK 17 · Gradle 8.10.2 · AGP 8.8.2 · Kotlin 2.0.21 |
+| 필요한 권한 | 차량 데이터 `pleos.car.permission.READ_CAR_STEERING · CAR_DRIVE · CAR_SPEED · CAR_DOORS · CAR_SAFETY · CAR_INFO`, 음성 `TTS_SERVICE`, `POST_NOTIFICATIONS` (헤즈업 알림) — 첫 실행 시 허용 |
+| Virtual Console | 에뮬레이터 재부팅 후 `adb forward tcp:8088 tcp:8088` 실행 → 브라우저에서 `http://127.0.0.1:8088/` |
+| 네트워크·외부 연동 | 필요 없음 (모든 처리와 기록 저장은 차량 내부에서만) |
+| (선택) 카메라 위 핸들 카드 | 디버그 빌드에서만 동작합니다. `adb shell appops set --user 10 com.steerin.parkingmaster.debug SYSTEM_ALERT_WINDOW allow` |
+
+### ④ APK 위치
+* 저장소 경로: [`apk/6학년5반_나는야주차왕_release.apk`](apk/) (release 서명본, 약 40 MB)
+* 바로 받기: [다운로드](https://github.com/skyworker104/pleos-steerin/raw/main/apk/6%ED%95%99%EB%85%845%EB%B0%98_%EB%82%98%EB%8A%94%EC%95%BC%EC%A3%BC%EC%B0%A8%EC%99%95_release.apk)
+
+| 기타 | 내용 |
+| :-- | :-- |
+| 플랫폼 | Pleos Connect (Android Automotive OS) · Pleos Vehicle SDK 2.3.2 · Kotlin · Jetpack Compose |
 | 데이터 경로 | **온디바이스** Vehicle SDK + AAOS Car API. 클라우드 API, GPS, 카메라, 초음파 센서를 사용하지 않습니다. |
-| APK | [`apk/6학년5반_나는야주차왕_release.apk`](apk/) (release 서명본, 아래 "실행 방법" 참고) |
+| 시연 영상 | [`docs/video/6학년5반_나는야주차왕_시연영상.mp4`](docs/video/) (3분 7초, 자막 파일 `.srt` 포함) |
 
 ---
 
